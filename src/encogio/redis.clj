@@ -11,7 +11,7 @@
 
 (defn unique-id
   [conn]
-  (enc/base-encode (wcar conn (car/incr counter-key)) enc/default-alphabet))
+  (enc/base-encode (wcar conn (car/incr counter-key))))
 
 (defn key-exists?
   [conn k]
@@ -49,12 +49,6 @@
       result
       {:url (:value result)
        :id id})))
-
-#_(defn id-taken?
-  [conn id]
-  (not (nil?
-        (wcar conn
-          (car/get (str id-prefix id))))))
 
 (defn get-url!
   [conn id]

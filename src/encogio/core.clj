@@ -1,30 +1,35 @@
-(ns encogio.core)
+(ns encogio.core
+  (:require [clojure.spec.alpha :as s]))
 
 (set! *warn-on-reflection* true)
 
-(def default-alphabet
+(def ^String alphabet
   "abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ1234567890_-")
 (def alphabet-regex
   #"[abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ1234567890_-]+")
-(def default-separators
-  "cfhistuCFHISTU")
+
+(s/def ::word #(re-matches alphabet-regex %))
+
+(defn valid-word?
+  "Check if the given word is valid for our alphabet."
+  [s]
+  (re-matches alphabet-regex s))
 
 (defn base-encode
   "Encode a positive number using the provided alphabet."
-  ([input ^String alphabet]
-   (base-encode input alphabet (bigint input) ""))
-  ([input ^String alphabet n ^String res]
+  ([input]
+   (base-encode input (bigint input) ""))
+  ([input ^String n ^String res]
    (cond
      (zero? input) (subs alphabet 0 1)
      (zero? n) res
      :else (recur input
-                  alphabet
                   (bigint (/ n (count alphabet)))
                   (str (nth alphabet (mod n (count alphabet))) res)))))
 
 (defn base-decode
   "Decode a string into a positive number using the provided alphabet."  
-  [^String input ^String alphabet]
+  [^String input]
   (reduce +
           (map-indexed (fn [idx c]
                          (* (.indexOf alphabet (int c))

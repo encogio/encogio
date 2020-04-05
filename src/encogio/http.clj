@@ -1,36 +1,62 @@
 (ns encogio.http
   (:require
    [encogio.core :as enc]
+   [encogio.url :as url]
+   [encogio.redis :as redis]
+   [ring.util.request :refer [body-string]]   
+   [ring.util.response :refer [resource-response]]
    [reitit.core :as r]
    [reitit.ring :as ring]))
 
+;; todo: rate limit
+
 (defn shorten-handler
-  [req]
-  (println :shorteninggg)
-  {:status 200 :body ""})
+  [conn url]
+  (let [result (redis/store-url! conn url)]
+    (if (:encogio.anomalies/category result)
+      {:status 500}
+      {:status 200 :body result})))
 
-(defn id-handler
-  [req]
+(defn shorten
+  [conn req]
+  (if-let [url (url/validate (body-string req))]
+    (shorten-handler conn url)
+    {:status 400}))
+    
+(defn redirect-handler
+  [conn id]
+  (if-let [url (redis/get-url! conn id)]
+    (ring.util.response/redirect url)
+    {:status 404}))
+
+(defn redirect
+  [conn req]
   (let [id (get-in req [:reitit.core/match :path-params :id])]
-    (println (str :visited-id id)))
-  {:status 200 :body ""})
+    (if (enc/valid-word? id)
+      (redirect-handler conn id)
+      {:status 404})))
 
-(def router
+(defn home
+  [req]
+  (resource-response "index.html" {:root "public"}))
+
+(defn make-router
+  [conn]
   (ring/router
-   [["" {:post shorten-handler}]
-    ["/" {:post shorten-handler}]
-    ["/:id" {:get id-handler}]]))
+   [["" {:get home}]
+    ["/" {:get home}]
 
-(def app
-  (ring/ring-handler router (ring/create-default-handler)))
+    ;; todo: content negotiation, json/form
+    ["/api"
+     ["/shorten" {:post #(shorten conn %)}]
+     ["/shorten/" {:post #(shorten conn %)}]]
+    
+    ["/:id" {:get #(redirect conn %)}]]))
 
-(comment
-  (app {:request-method :post :uri ""})
-  (app {:request-method :post :uri "/"})  
-  (app {:request-method :get :uri "/abc+++"})
-  (app {:request-method :post :uri "/abc"})  
-  (app {:request-method :get :uri "/a"})  
-  )
+(defn make-app
+  [conn]
+  (ring/ring-handler (make-router conn)
+                     (ring/create-default-handler)))
 
 
 

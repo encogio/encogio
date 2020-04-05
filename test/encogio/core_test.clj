@@ -7,4 +7,4 @@
 (defspec base-encoding-is-bijective
   1000
   (prop/for-all [n gen/nat]
-    (= n (e/base-decode (e/base-encode n e/default-alphabet) e/default-alphabet))))
+    (= n (e/base-decode (e/base-encode n)))))
