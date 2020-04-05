@@ -4,6 +4,8 @@
 
 (def default-alphabet
   "abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ1234567890_-")
+(def alphabet-regex
+  #"[abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ1234567890_-]+")
 (def default-separators
   "cfhistuCFHISTU")
 

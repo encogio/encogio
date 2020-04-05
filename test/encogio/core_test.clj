@@ -1,7 +1,5 @@
 (ns encogio.core-test
   (:require [clojure.test.check.properties :as prop]
-            [clojure.set :as s]
-            [flatland.ordered.set :as os]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.clojure-test :refer [defspec]]
             [encogio.core :as e]))
