@@ -1,0 +1,54 @@
+body {
+	margin: 0 auto;
+	padding: 2%;
+	font-family: sans-serif;
+	font-size: 18px;
+	line-height: 1.6;
+	color: #222;
+}
+
+fieldset {
+	border: 0;
+}
+
+label {
+	display: block;
+	margin-bottom: 2ex;
+}
+
+input, textarea, select {
+	box-sizing: border-box;
+	display: block;
+	margin-top: .5ex;
+	padding: 2ex 1em;
+	border: 1px solid #ededed;
+	width: 100%;
+	font-size: 1em;
+}
+
+input[type=checkbox], input[type=radio] {
+	display: inline;
+	width: auto;
+}
+
+textarea {
+	font-family: inherit;
+}
+
+button {
+	padding: 1ex .5em;
+	font-size: 1em;
+}
+
+table {
+	width: 100%;
+}
+
+@media (min-width: 800px) {
+	body {
+		font-size: 22px;
+	}
+	input, textarea, select {
+		width: 50%;
+	}
+}

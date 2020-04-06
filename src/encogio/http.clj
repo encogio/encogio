@@ -2,6 +2,7 @@
   (:require
    [encogio.core :as enc]
    [encogio.url :as url]
+   [encogio.config :as config]
    [encogio.redis :as redis]
    [ring.util.request :refer [body-string]]   
    [ring.util.response :refer [resource-response]]
@@ -15,7 +16,9 @@
   (let [result (redis/store-url! conn url)]
     (if (:encogio.anomalies/category result)
       {:status 500}
-      {:status 200 :body result})))
+      {:status 200
+       :body (str url/site-host "/" (:id result))
+       :headers {"Content-Type" "text/plain"}})))
 
 (defn shorten
   [conn req]
@@ -40,24 +43,20 @@
   [req]
   (resource-response "index.html" {:root "public"}))
 
-(defn make-router
-  [conn]
+(def router
   (ring/router
    [["" {:get home}]
     ["/" {:get home}]
 
     ;; todo: content negotiation, json/form
     ["/api"
-     ["/shorten" {:post #(shorten conn %)}]
-     ["/shorten/" {:post #(shorten conn %)}]]
+     ["/shorten" {:post #(shorten config/redis-conn %)}]
+     ["/shorten/" {:post #(shorten config/redis-conn %)}]]
     
-    ["/:id" {:get #(redirect conn %)}]]))
+    ["/:id" {:get #(redirect config/redis-conn %)}]]))
 
-(defn make-app
-  [conn]
-  (ring/ring-handler (make-router conn)
-                     (ring/create-default-handler)))
-
-
-
-
+(def app
+  (ring/ring-handler router
+                     (ring/routes
+                       (ring/create-resource-handler {:root "public" :path "/"})
+                       (ring/create-default-handler))))

@@ -1,16 +1,20 @@
 (defproject encogio "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
-  :url "http://example.com/FIXME"
-  :license {:name "EPL-2.0 OR GPL-2.0-or-later WITH Classpath-exception-2.0"
-            :url "https://www.eclipse.org/legal/epl-2.0/"}
+  :url "http://encog.io"
   :dependencies [[org.clojure/clojure "1.10.1"]
+                 ;; config
+                 [environ "1.1.0"]
                  ;; client-side scripting
-                 [org.clojure/clojurescript "1.10.439"]
-                 ;; http server
+                 [org.clojure/clojurescript "1.10.439"
+                    :exclusions [com.fasterxml.jackson.core/jackson-core]] ;; needed since `reitit-middleware` transitively depends on jackson-core and jackson-databind and their versions MUST match
+                 ;; client-side rendering
+                 [rum "0.11.4"]
+                 ;; http server abstraction
                  [ring/ring-core "1.8.0"]
+                 ;; http server runtime
                  [ring/ring-jetty-adapter "1.8.0"]
-                 ;; http router
-                 [metosin/reitit-ring "0.4.2"]                 
+                 ;; http router & middleware
+                 [metosin/reitit-ring "0.4.2"]
+                 [metosin/reitit-middleware "0.4.2"]
                  ;; redis client
                  [com.taoensso/carmine "2.20.0-RC1"]
                  ;; generative testing
@@ -58,5 +62,4 @@
   :figwheel {:http-server-root "public"
              :server-port 3449
              :nrepl-port 7002
-             ;; Server index.html for all routes for HTML5 routing
-             :ring-handler encogio.http/home})
+             :ring-handler encogio.http/app})
