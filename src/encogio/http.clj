@@ -17,7 +17,7 @@
     (if (:encogio.anomalies/category result)
       {:status 500}
       {:status 200
-       :body (str url/site-host "/" (:id result))
+       :body (url/urlize (:id result))
        :headers {"Content-Type" "text/plain"}})))
 
 (defn shorten

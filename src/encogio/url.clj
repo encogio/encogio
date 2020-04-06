@@ -1,8 +1,7 @@
 (ns encogio.url
   (:import [java.net URL MalformedURLException]))
 
-;; todo: better uri handling, add http scheme if absent
-
+(def site-scheme "http")
 (def site-host "encog.io")
 
 (defn validate
@@ -12,3 +11,7 @@
       (when (not= (.getHost parsed) site-host)
         (.toString parsed)))
     (catch MalformedURLException e)))
+
+(defn urlize
+  [k]
+  (str site-scheme "://" site-host "/" k))
