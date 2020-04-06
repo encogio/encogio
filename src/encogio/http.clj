@@ -4,9 +4,7 @@
    [encogio.url :as url]
    [encogio.config :as config]
    [encogio.redis :as redis]
-   [ring.util.request :refer [body-string]]   
    [ring.util.response :as resp :refer [resource-response]]
-   [reitit.core :as r]
    [reitit.ring :as ring]
    [reitit.ring.middleware.muuntaja :as muuntaja]
    [muuntaja.core :as m]))
@@ -28,12 +26,13 @@
         raw-url (:url body)]
     (if-let [u (url/validate raw-url)]
       (shorten-handler conn u)
-      {:status 400 :body "Invalid URL"})))
+      {:status 400
+       :body "Invalid URL"})))
     
 (defn redirect-handler
   [conn id]
   (if-let [url (redis/get-url! conn id)]
-    (resp/redirect url)
+    (resp/redirect url :permanent-redirect)
     {:status 404}))
 
 (defn redirect
@@ -44,7 +43,7 @@
       {:status 404})))
 
 (defn home
-  [req]
+  [_]
   (resource-response "index.html" {:root "public"}))
 
 (def content-negotiation

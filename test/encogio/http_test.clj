@@ -81,7 +81,7 @@
         req {:request-method :get
              :uri (str "/" id)}
         resp (app req)]
-    (is (= (:status resp) 302))
+    (is (= (:status resp) 308))
     (is (= (get-in resp [:headers "Location"]) url))))
 
 (deftest redirect-handler-return-not-found-if-no-match

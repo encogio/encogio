@@ -10,7 +10,7 @@
     (let [parsed (URL. s)]
       (when (not= (.getHost parsed) site-host)
         (.toString parsed)))
-    (catch MalformedURLException e)))
+    (catch MalformedURLException _)))
 
 (defn urlize
   [k]
