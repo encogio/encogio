@@ -7,7 +7,9 @@
    [ring.util.request :refer [body-string]]   
    [ring.util.response :refer [resource-response]]
    [reitit.core :as r]
-   [reitit.ring :as ring]))
+   [reitit.ring :as ring]
+   [reitit.ring.middleware.muuntaja :as muuntaja]
+   [muuntaja.core :as m]))
 
 ;; todo: rate limit
 
@@ -17,14 +19,16 @@
     (if (:encogio.anomalies/category result)
       {:status 500}
       {:status 200
-       :body (url/urlize (:id result))
-       :headers {"Content-Type" "text/plain"}})))
+       :body {:url url
+              :short-url (url/urlize (:id result))}})))
 
 (defn shorten
   [conn req]
-  (if-let [url (url/validate (body-string req))]
-    (shorten-handler conn url)
-    {:status 400}))
+  (let [body (:body-params req)
+        raw-url (:url body)]
+    (if-let [u (url/validate raw-url)]
+      (shorten-handler conn u)
+      {:status 400 :body "Invalid URL"})))
     
 (defn redirect-handler
   [conn id]
@@ -33,8 +37,8 @@
     {:status 404}))
 
 (defn redirect
-  [conn req]
-  (let [id (get-in req [:reitit.core/match :path-params :id])]
+  [conn {:keys [path-params]}]
+  (let [id (:id path-params)]
     (if (enc/valid-word? id)
       (redirect-handler conn id)
       {:status 404})))
@@ -42,14 +46,25 @@
 (defn home
   [req]
   (resource-response "index.html" {:root "public"}))
+(def content-negotiation
+  (m/create
+   (m/select-formats
+    m/default-options
+    ["application/json"
+     "application/edn"])))
+
+(def content-negotiation-middleware
+  [muuntaja/format-negotiate-middleware
+   muuntaja/format-response-middleware
+   muuntaja/format-request-middleware])
 
 (def router
   (ring/router
    [["" {:get home}]
     ["/" {:get home}]
 
-    ;; todo: content negotiation, json/form
-    ["/api"
+    ["/api" {:muuntaja content-negotiation
+             :middleware content-negotiation-middleware}
      ["/shorten" {:post #(shorten config/redis-conn %)}]
      ["/shorten/" {:post #(shorten config/redis-conn %)}]]
     

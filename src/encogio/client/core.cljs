@@ -2,6 +2,7 @@
   (:require
    [rum.core :as rum]
    [goog.dom :as dom]
+   [cljs.reader :as r]
    [goog.net.XhrIo :as xhr]))
 
 ;; io
@@ -12,24 +13,23 @@
   (xhr/send "/api/shorten"
             (fn [event]
               ;; todo: error handling
-              (let [short (-> event .-target .getResponseText)
-                    short-urls (conj (:short-urls @state) {:url url
-                                                           :short-url short})]
-                (println :req-recv short-urls)
+              (let [resp (-> event .-target .getResponseText)
+                    shortened (r/read-string resp)
+                    short-urls (conj (:short-urls @state) shortened)]
                 (swap! state assoc
                        :url ""
                        :short-urls short-urls
                        :ongoing-request false)))
             "POST"
-            url
-            (clj->js {"Content-Type" "text/plain"})))
+            (pr-str {:url url})
+            (clj->js {"Accept" "application/edn"
+                      "Content-Type" "application/edn"})))
 
 ;; ui
 
 (rum/defc url-input < rum/reactive
   [state]
   (let [{:keys [url ongoing-request]} (rum/react state)]
-    (println :ongoing? ongoing-request)
     [:form
      [:input {:type "text"
               :id "url"
