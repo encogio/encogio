@@ -13,7 +13,7 @@
 (def gen-url
   (gen/let [protocol (gen/elements ["http" "https"])
             host (gen/elements ["google.com" "facebook.com" "apple.com"])
-            port (gen/elements [80 8080])
+            port (gen/choose 80 8080)
             path (gen/fmap #(str "/" %) gen/string-alphanumeric)]
     (gen/return (URL. protocol host port path))))
 

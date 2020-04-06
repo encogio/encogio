@@ -6,28 +6,6 @@
    [encogio.config :refer [redis-conn]]
    [clojure.test :refer [deftest is]]))
 
-(deftest redirect-handler-redirects-to-url-if-match
-  (let [url "http://google.com/asdfsad"
-        {:keys [id]} (redis/store-url! redis-conn "http://google.com/asdfsad")
-    resp (http/redirect-handler redis-conn id)]
-    (is (= (:status resp) 302))
-    (is (= (get-in resp [:headers "Location"]) url))))
-
-(deftest redirect-handler-return-not-found-if-no-match
-  (let [id "not-matching"
-        _ (wcar redis-conn (car/del (str redis/id-prefix id)))
-        resp (http/redirect-handler redis-conn id)]
-    (is (= (:status resp) 404))))
-
-(deftest redirect-returns-not-found-for-illegal-alias
-  (let [id "not an alias"
-        req {:request-method :get
-             :uri (str "/" id)}
-        resp (app req)]
-    (is (= (:status resp) 404))))
-
-;; api
-
 (defn shorten!
   [url]
   (let [req
@@ -94,3 +72,29 @@
         resp (shorten! url)]
     (is (= (:status resp) 200))
     (is (= (get-in resp [:body :url]) url))))
+
+;; redirection
+
+(deftest redirect-handler-redirects-to-url-if-match
+  (let [url "http://google.com/asdfsad"
+        {:keys [id]} (redis/store-url! redis-conn "http://google.com/asdfsad")
+        req {:request-method :get
+             :uri (str "/" id)}
+        resp (app req)]
+    (is (= (:status resp) 302))
+    (is (= (get-in resp [:headers "Location"]) url))))
+
+(deftest redirect-handler-return-not-found-if-no-match
+  (let [id "not-matching"
+        _ (wcar redis-conn (car/del (str redis/id-prefix id)))
+        req {:request-method :get
+             :uri (str "/" id)}        
+        resp (app req)]
+    (is (= (:status resp) 404))))
+
+(deftest redirect-returns-not-found-for-illegal-alias
+  (let [id "not an alias"
+        req {:request-method :get
+             :uri (str "/" id)}
+        resp (app req)]
+    (is (= (:status resp) 404))))

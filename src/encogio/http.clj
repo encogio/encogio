@@ -5,7 +5,7 @@
    [encogio.config :as config]
    [encogio.redis :as redis]
    [ring.util.request :refer [body-string]]   
-   [ring.util.response :refer [resource-response]]
+   [ring.util.response :as resp :refer [resource-response]]
    [reitit.core :as r]
    [reitit.ring :as ring]
    [reitit.ring.middleware.muuntaja :as muuntaja]
@@ -33,7 +33,7 @@
 (defn redirect-handler
   [conn id]
   (if-let [url (redis/get-url! conn id)]
-    (ring.util.response/redirect url)
+    (resp/redirect url)
     {:status 404}))
 
 (defn redirect
@@ -46,6 +46,7 @@
 (defn home
   [req]
   (resource-response "index.html" {:root "public"}))
+
 (def content-negotiation
   (m/create
    (m/select-formats
