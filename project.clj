@@ -8,6 +8,8 @@
                     :exclusions [com.fasterxml.jackson.core/jackson-core]] ;; needed since `reitit-middleware` transitively depends on jackson-core and jackson-databind and their versions MUST match
                  ;; client-side rendering
                  [rum "0.11.4"]
+                 ;; clipboard management
+                 [cljsjs/clipboard "2.0.4-0"]
                  ;; http server abstraction
                  [ring/ring-core "1.8.0"]
                  ;; http server runtime
