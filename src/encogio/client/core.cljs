@@ -9,6 +9,7 @@
 (rum/defc url-input < rum/reactive
   [state]
   (let [{:keys [url
+                error
                 ongoing-request]} (rum/react state)]
     [:form
      [:input {:type "text"
@@ -23,13 +24,19 @@
        :on-click (fn [ev]
                    (.preventDefault ev)
                    (swap! state assoc :ongoing-request true)
-                   (p/then (io/shorten! url)
-                           (fn [shortened]
-                             (let [short-urls (take 3 (conj (:short-urls @state) shortened))]
-                               (swap! state assoc
-                                      :url (:url shortened)
-                                      :short-urls short-urls
-                                      :ongoing-request false)))))}
+                   (-> (io/shorten! url)
+                       (p/then
+                        (fn [shortened]
+                          (let [short-urls (take 3 (conj (:short-urls @state) shortened))]
+                            (swap! state assoc
+                                   :url (:url shortened)
+                                   :error nil
+                                   :short-urls short-urls
+                                   :ongoing-request false))))
+                       (p/catch (fn [err]
+                                  (swap! state assoc
+                                         :error err
+                                         :ongoing-request false)))))}
       "Encoger"]]))
 
 (rum/defcs copy-button
@@ -73,15 +80,23 @@
       [:a {:href short-url} short-url]
       (copy-button short-url)])])
 
+(rum/defc error-message < rum/reactive
+  [state]
+  (let [{:keys [error]} (rum/react state)]
+    (when error
+      [:p (pr-str error)])))
+
 ;; app
 
 (defonce app-state
   (atom {:url ""
+         :error nil
          :short-urls []
          :ongoing-request false}))
 
 (defn mount!
   []
+  (rum/mount (error-message app-state) (dom/getElement "error-message"))
   (rum/mount (shortened-links app-state) (dom/getElement "shortened-links"))
   (rum/mount (url-input app-state) (dom/getElement "shorten-form")))
 
