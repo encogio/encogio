@@ -7,17 +7,28 @@
    [clojure.test :refer [deftest is]]))
 
 (defn shorten!
-  [url]
-  (let [req
-        {:request-method :post
-         :headers {"content-type" "application/edn"
-                   "accept" "application/edn"}
-         :uri "/api/shorten"
-         :body (pr-str {:url url})}
-        resp (app req)]
-   (if (= 200 (:status resp))
-     (update resp :body #(clojure.edn/read-string (slurp %)))
-     resp)))
+  ([url]
+   (let [req
+         {:request-method :post
+          :headers {"content-type" "application/edn"
+                    "accept" "application/edn"}
+          :uri "/api/shorten"
+          :body (pr-str {:url url})}
+         resp (app req)]
+     (if (= 200 (:status resp))
+       (update resp :body #(clojure.edn/read-string (slurp %)))
+       resp)))
+  ([url alias]
+   (let [req
+         {:request-method :post
+          :headers {"content-type" "application/edn"
+                    "accept" "application/edn"}
+          :uri "/api/shorten"
+          :body (pr-str {:url url :alias alias})}
+         resp (app req)]
+     (if (= 200 (:status resp))
+       (update resp :body #(clojure.edn/read-string (slurp %)))
+       resp))))
 
 ;; shorten: invalid URLs
 
@@ -73,6 +84,31 @@
     (is (= (:status resp) 200))
     (is (= (get-in resp [:body :url]) url))))
 
+(deftest shorten-accepts-aliases
+  (let [url "http://google.com"
+        alias "dont-be-evil"
+        _ (wcar redis-conn (car/del (redis/make-id-key alias)))
+        resp (shorten! url alias)]
+    (is (= (:status resp) 200))
+    (is (= (get-in resp [:body :url]) url))
+    (is (= (get-in resp [:body :alias]) alias))))
+
+(deftest shorten-rejects-duplicate-aliases
+  (let [url "http://facebook.com"
+        alias "privacy"
+        _ (wcar redis-conn (car/del (redis/make-id-key alias)))
+        resp (shorten! url alias)
+        err (shorten! url alias)]
+    (is (= (:status resp) 200))
+    (is (= (:status err) 409))))
+
+(deftest shorten-rejects-invalid-aliases
+  (let [url "http://facebook.com"
+        alias "not a valid alias"
+        _ (wcar redis-conn (car/del (redis/make-id-key alias)))
+        resp (shorten! url alias)]
+    (is (= (:status resp) 400))))
+
 ;; redirection
 
 (deftest redirect-handler-redirects-to-url-if-match
@@ -86,7 +122,7 @@
 
 (deftest redirect-handler-return-not-found-if-no-match
   (let [id "not-matching"
-        _ (wcar redis-conn (car/del (str redis/id-prefix id)))
+        _ (wcar redis-conn (car/del (redis/make-id-key id)))
         req {:request-method :get
              :uri (str "/" id)}        
         resp (app req)]
@@ -103,7 +139,7 @@
 
 (deftest rate-limit-limits-by-remote-address
   (let [addr "123.123.1.1"
-        _ (wcar redis-conn (car/del (str redis/rate-limit-prefix addr)))
+        _ (wcar redis-conn (car/del (redis/make-rate-limit-key addr)))
         {:keys [wrap]} (http/rate-limit-middleware redis-conn
                                                    {:limit 2
                                                     :limit-duration 3600})

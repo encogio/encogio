@@ -33,7 +33,7 @@
   (prop/for-all [a (gen/not-empty gen/string-alphanumeric)
                  url gen-url]
     (let [u (.toString url)
-          _ (wcar test-server (car/del (str redis/id-prefix a)))
+          _ (wcar test-server (car/del (redis/make-id-key a)))
           result (redis/alias-url! test-server u a)
           expanded (redis/get-url! test-server a)]
       (= u expanded))))
@@ -43,7 +43,7 @@
   (prop/for-all [a (gen/not-empty gen/string-alphanumeric)
                  url gen-url]
     (let [u (.toString url)
-          _ (wcar test-server (car/del (str redis/id-prefix a)))
+          _ (wcar test-server (car/del (redis/make-id-key a)))
           _ (redis/alias-url! test-server u a)
           conflict (redis/alias-url! test-server u a)]
       (= :encogio.anomalies/conflict
@@ -52,14 +52,14 @@
 (deftest rate-limit-limits-after-all-attempts-consumed
   (let [key "rate-limited"
         config {:limit 1 :limit-duration 60}
-        _ (wcar test-server (car/del (str redis/rate-limit-prefix key)))]
+        _ (wcar test-server (car/del (redis/make-rate-limit-key key)))]
     (is (= {:remaining 0} (redis/rate-limit test-server config key)))
     (is (= :limit (redis/rate-limit test-server config key)))))
 
 (deftest rate-limit-resets-after-limit-duration
   (let [key "rate-limited"
         config {:limit 100 :limit-duration 1}
-        _ (wcar test-server (car/del (str redis/rate-limit-prefix key)))]
+        _ (wcar test-server (car/del (redis/make-rate-limit-key key)))]
     (is (= {:remaining 99} (redis/rate-limit test-server config key)))
     (is (= {:remaining 98} (redis/rate-limit test-server config key)))
     (is (= {:remaining 97} (redis/rate-limit test-server config key)))

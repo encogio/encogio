@@ -3,15 +3,6 @@
    [encogio.core :as enc]
    [taoensso.carmine :as car :refer [wcar]]))
 
-(def counter-key "encogio.counter")
-(def id-prefix "encogio.id:")
-(def rate-limit-prefix "encogio.ratelimit:")
-
-;; todo: lua script
-(defn- unique-id
-  [conn]
-  (enc/base-encode (wcar conn (car/incr counter-key))))
-
 (defn- key-exists?
   [conn k]
   (= 1 (wcar conn (car/exists k))))
@@ -29,13 +20,31 @@
         {:key k :value v}
         {:encogio.anomalies/category :encogio.anomalies/conflict}))))
 
+;; keys
+
+(def counter-key "encogio.counter")
+(def id-prefix "encogio.id:")
+(def rate-limit-prefix "encogio.ratelimit:")
+
+(defn make-id-key
+  [id]
+  (str id-prefix id))
+
+(defn make-rate-limit-key
+  [id]
+  (str rate-limit-prefix id))
+
 ;; urls
+
+(defn- unique-id
+  [conn]
+  (enc/base-encode (wcar conn (car/incr counter-key))))
 
 (defn store-url!
   ([conn url]
    (store-url! conn url (unique-id conn)))
   ([conn url id]
-   (let [id-key (str id-prefix id)
+   (let [id-key (make-id-key id)
          result (set-key! conn id-key url)]
      (if (:encogio.anomalies/category result)
        (recur conn url (unique-id conn))
@@ -44,7 +53,7 @@
   
 (defn alias-url!
   [conn url id]
-  (let [id-key (str id-prefix id)
+  (let [id-key (make-id-key id)
         result (set-key! conn id-key url)]
     (if (:encogio.anomalies/category result)
       result
@@ -54,12 +63,12 @@
 (defn get-url!
   [conn id]
   (wcar conn
-    (car/get (str id-prefix id))))
+    (car/get (make-id-key id))))
 
 (defn rate-limit
   [conn {:keys [limit
                 limit-duration]} k]
-  (let [key (str rate-limit-prefix k)
+  (let [key (make-rate-limit-key k)
         current (wcar conn (car/llen key))]
     (if (>= current limit)
       :limit

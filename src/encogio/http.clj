@@ -18,14 +18,29 @@
       {:status 500}
       {:status 200
        :body {:url url
+              :alias (:id result)
+              :short-url (url/urlize (:id result))}})))
+
+(defn alias-handler
+  [conn url alias]
+  (let [result (redis/alias-url! conn url alias)]
+    (if (:encogio.anomalies/category result)
+      {:status 409}
+      {:status 200
+       :body {:url url
+              :alias alias
               :short-url (url/urlize (:id result))}})))
 
 (defn shorten
   [conn req]
-  (let [body (:body-params req)
-        raw-url (:url body)]
-    (if-let [u (url/validate raw-url)]
-      (shorten-handler conn u)
+  (let [{:keys [url alias]} (:body-params req)]
+    (if-let [valid-url (url/validate url)]
+      (if alias
+        (if (enc/valid-word? alias)
+          (alias-handler conn valid-url alias)
+          {:status 400
+           :body "Invalid alias"})
+        (shorten-handler conn valid-url))
       {:status 400
        :body "Invalid URL"})))
     
@@ -66,7 +81,7 @@
     :wrap (fn [handler]
             (fn [request]
               (if-let [forwarded-for (get-in request [:headers "x-forwarded-for"])]
-                (let [remote-addr (s/trim (re-find #"[^,]*$" forwarded-for))
+                (let [remote-addr (s/trim (re-find #"[^,]*" forwarded-for))
                       limit (redis/rate-limit conn settings remote-addr)]
                   (if (= limit :limit)
                     {:status 429}
