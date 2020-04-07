@@ -4,12 +4,12 @@
    [encogio.url :as url]
    [encogio.config :as config]
    [encogio.redis :as redis]
+   [clojure.string :as s]
    [ring.util.response :as resp :refer [resource-response]]
    [reitit.ring :as ring]
+   [reitit.middleware :as mid]
    [reitit.ring.middleware.muuntaja :as muuntaja]
    [muuntaja.core :as m]))
-
-;; todo: rate limit
 
 (defn shorten-handler
   [conn url]
@@ -58,13 +58,32 @@
    muuntaja/format-response-middleware
    muuntaja/format-request-middleware])
 
+(defn rate-limit-middleware
+  [conn settings]
+  (mid/map->Middleware
+   {:name ::rate-limit
+    :description "Middleware that rate limits by IP"
+    :wrap (fn [handler]
+            (fn [request]
+              (if-let [forwarded-for (get-in request [:headers "x-forwarded-for"])]
+                (let [remote-addr (s/trim (re-find #"[^,]*$" forwarded-for))
+                      limit (redis/rate-limit conn settings remote-addr)]
+                  (if (= limit :limit)
+                    {:status 429}
+                    (handler request)))
+                (handler request))))}))
+
+(def api-middleware
+  (conj content-negotiation-middleware
+        (rate-limit-middleware config/redis-conn config/rate-limit)))
+
 (def router
   (ring/router
    [["" {:get home}]
     ["/" {:get home}]
 
     ["/api" {:muuntaja content-negotiation
-             :middleware content-negotiation-middleware}
+             :middleware api-middleware}
      ["/shorten" {:post #(shorten config/redis-conn %)}]
      ["/shorten/" {:post #(shorten config/redis-conn %)}]]
     
@@ -73,5 +92,6 @@
 (def app
   (ring/ring-handler router
                      (ring/routes
-                       (ring/create-resource-handler {:root "public" :path "/"})
-                       (ring/create-default-handler))))
+                      (ring/create-resource-handler {:root "public"
+                                                     :path "/"})
+                      (ring/create-default-handler))))

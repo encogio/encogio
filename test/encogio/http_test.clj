@@ -98,3 +98,29 @@
              :uri (str "/" id)}
         resp (app req)]
     (is (= (:status resp) 404))))
+
+;; rate limit
+
+(deftest rate-limit-limits-by-remote-address
+  (let [addr "123.123.1.1"
+        _ (wcar redis-conn (car/del (str redis/rate-limit-prefix addr)))
+        {:keys [wrap]} (http/rate-limit-middleware redis-conn
+                                                   {:limit 2
+                                                    :limit-duration 3600})
+        handler (wrap (constantly {:status 200}))
+        req {:headers {"x-forwarded-for" addr}}]
+    (is (= 200 (:status (handler req))))
+    (is (= 200 (:status (handler req))))
+    (is (= 429 (:status (handler req))))))
+
+(deftest rate-limit-limits-by-proxies-remote-address
+  (let [addr "123.123.1.1"
+        _ (wcar redis-conn (car/del (str redis/rate-limit-prefix addr)))
+        {:keys [wrap]} (http/rate-limit-middleware redis-conn
+                                                   {:limit 2
+                                                    :limit-duration 3600})
+        handler (wrap (constantly {:status 200}))
+        req {:headers {"x-forwarded-for" (str addr ", 122.131.4.1")}}]
+    (is (= 200 (:status (handler req))))
+    (is (= 200 (:status (handler req))))
+    (is (= 429 (:status (handler req))))))

@@ -3,21 +3,20 @@
    [encogio.core :as enc]
    [taoensso.carmine :as car :refer [wcar]]))
 
-(def server {:pool {}
-             :spec {:host "127.0.0.1" :port 6379}})
-
 (def counter-key "encogio.counter")
 (def id-prefix "encogio.id:")
+(def rate-limit-prefix "encogio.ratelimit:")
 
-(defn unique-id
+;; todo: lua script
+(defn- unique-id
   [conn]
   (enc/base-encode (wcar conn (car/incr counter-key))))
 
-(defn key-exists?
+(defn- key-exists?
   [conn k]
   (= 1 (wcar conn (car/exists k))))
 
-(defn set-key!
+(defn- set-key!
   [conn k v]
   (if (key-exists? conn k)
     {:encogio.anomalies/category :encogio.anomalies/conflict}
@@ -29,6 +28,8 @@
       (if (= set? "OK")
         {:key k :value v}
         {:encogio.anomalies/category :encogio.anomalies/conflict}))))
+
+;; urls
 
 (defn store-url!
   ([conn url]
@@ -55,3 +56,20 @@
   (wcar conn
     (car/get (str id-prefix id))))
 
+(defn rate-limit
+  [conn {:keys [limit
+                limit-duration]} k]
+  (let [key (str rate-limit-prefix k)
+        current (wcar conn (car/llen key))]
+    (if (>= current limit)
+      :limit
+      (if (key-exists? conn key)
+        (let [remaining (wcar conn
+                          (car/rpushx key key))]
+          {:remaining (- limit remaining)})
+        (let [[_ _ _ [remaining _]] (wcar conn
+                                      (car/multi)
+                                      (car/rpush key key)
+                                      (car/expire key limit-duration)
+                                      (car/exec))]
+          {:remaining (- limit remaining)})))))

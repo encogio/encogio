@@ -43,10 +43,7 @@
       {:disabled (if ongoing-request "disabled" "")       
        :on-click (fn [ev]
                    (.preventDefault ev)
-                   (shorten! state url)
-                   #_(if displaying-shortened
-                     (copy! state)
-                     (shorten! state url)))}
+                   (shorten! state url))}
       "Encoger"
       ]]))
 
