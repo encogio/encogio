@@ -61,21 +61,36 @@
       "Encoger"
       ]]))
 
-(rum/defc copy-button
-  < {:after-render (fn [state]
+(rum/defcs copy-button
+  < (rum/local false ::copied?)
+    rum/reactive
+    {:after-render (fn [state]
                      (let [[url] (:rum/args state)
+                           copied? (::copied? state)
                            button (rum/ref-node state "button")
-                           clip (js/ClipboardJS. button (clj->js {:text (constantly url)}))]
+                           clip (js/ClipboardJS. button
+                                                 #js {:text (constantly url)})]
+                       (.on clip "success" (fn [result]
+                                             (reset! copied? true)
+                                             (js/setTimeout #(reset! copied? false) 2000)))
+                       (.on clip "error" (fn [result]
+                                           (println :copy-error)))
                        (assoc state :clip clip)))
      :will-unmount (fn [state]
                      (let [clip (:clip state)]
+                       (.off clip "success")
+                       (.off clip "error")
                        (.destroy clip)
                        (dissoc state :clip)))}
-  [url]
-  [:button
-   {:ref "button"
-    :class "copy-button"}
-   "Copiar"])
+  [state url]
+  (let [copied? (rum/react (::copied? state))]
+    [:button
+     {:disabled (if copied? "disabled" "")
+      :ref "button"
+      :class "copy-button"}
+     (if copied?
+       "Copiado!"
+       "Copiar")]))
 
 (rum/defc shortened-links < rum/reactive
   [state]
@@ -94,5 +109,9 @@
          :short-urls []
          :ongoing-request false}))
 
-(rum/mount (shortened-links app-state) (dom/getElement "shortened-links"))
-(rum/mount (url-input app-state) (dom/getElement "shorten-form"))
+(defn mount!
+  []
+  (rum/mount (shortened-links app-state) (dom/getElement "shortened-links"))
+  (rum/mount (url-input app-state) (dom/getElement "shorten-form")))
+
+(mount!)
