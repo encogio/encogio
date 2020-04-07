@@ -66,7 +66,3 @@
     (Thread/sleep 1000)
     (is (= {:remaining 99} (redis/rate-limit test-server config key)))))
 
-(comment
-  (clojure.test/run-tests 'encogio.redis-test)
-  )
-
