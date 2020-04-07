@@ -1,51 +1,10 @@
 (ns encogio.client.core
   (:require
+   [encogio.client.io :as io]
    [rum.core :as rum]
    [cljsjs.clipboard]
    [goog.dom :as dom]
-   [goog.events :as ev :refer [listen unlisten]]
-   [promesa.core :as p]
-   [cljs.reader :as r])
-  (:import [goog.net XhrIo EventType]))
-
-;; io
-
-(def json-headers
-  (clj->js {"Accept" "application/json"
-            "Content-Type" "application/json"}))
-
-(defn shorten!
-  [url]
-  (p/create
-   (fn [resolve reject]
-     (let [body (js/JSON.stringify #js {:url url})
-           request (XhrIo.)]
-       (listen request
-               EventType.COMPLETE
-               (fn [event]
-                 (let [response (-> event .-target)
-                       status (.getStatus response)]
-                   (case status
-                     200
-                     (let [body (.getResponseJson response)
-                           shortened {:url (.-url body)
-                                      :short-url (aget body "short-url")}]
-                       (resolve shortened))
-                     500 (reject :server-error)
-                     400 (reject :invalid-url)
-                     429 (reject :rate-limit)
-                     (reject :unknown-error)))))
-       (listen request
-               EventType.ERROR
-               (fn [err] ;; ErrorCode.{ TIMEOUT, EXCEPTION, HTTP_ERROR, ABORT }
-                 (reject :network-error)))
-       (.send request
-              "/api/shorten"
-              "POST"
-              body
-              json-headers)))))
-
-;; ui
+   [promesa.core :as p]))
 
 (rum/defc url-input < rum/reactive
   [state]
@@ -60,11 +19,11 @@
               :on-change (fn [ev]
                            (swap! state assoc :url (.-value (.-target ev))))}]
      [:button
-      {:disabled (if ongoing-request "disabled" "")       
+      {:disabled (if ongoing-request "disabled" "")
        :on-click (fn [ev]
                    (.preventDefault ev)
                    (swap! state assoc :ongoing-request true)
-                   (p/then (shorten! url)
+                   (p/then (io/shorten! url)
                            (fn [shortened]
                              (let [short-urls (take 3 (conj (:short-urls @state) shortened))]
                                (swap! state assoc
