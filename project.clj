@@ -5,7 +5,7 @@
                  [environ "1.1.0"]
                  ;; client-side scripting
                  [org.clojure/clojurescript "1.10.439"
-                    :exclusions [com.fasterxml.jackson.core/jackson-core]] ;; needed since `reitit-middleware` transitively depends on jackson-core and jackson-databind and their versions MUST match
+                  :exclusions [com.fasterxml.jackson.core/jackson-core]] ;; needed since `reitit-middleware` transitively depends on jackson-core and jackson-databind and their versions MUST match
                  ;; client-side rendering
                  [rum "0.11.4"]
                  ;; clipboard management

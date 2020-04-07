@@ -8,23 +8,37 @@
 
 ;; io
 
+;; todo: http error handling, timeout, offline
 (defn shorten!
   [state url]
   (swap! state assoc :ongoing-request true)
   (xhr/send "/api/shorten"
             (fn [event]
-              ;; todo: error handling
-              (let [resp (-> event .-target .getResponseText)
-                    shortened (r/read-string resp)
-                    short-urls (take 3 (conj (:short-urls @state) shortened))]
-                (swap! state assoc
-                       :url (:url shortened)
-                       :short-urls short-urls
-                       :ongoing-request false)))
+              (let [response (-> event .-target)
+                    status (.getStatus response)]
+                (case status
+                  200
+                  (let [body (.getResponseJson response)
+                        shortened {:url (.-url body)
+                                   :short-url (aget body "short-url")}
+                        short-urls (take 3 (conj (:short-urls @state) shortened))]
+                    (swap! state assoc
+                           :url (:url shortened)
+                           :short-urls short-urls
+                           :ongoing-request false))
+
+                  500 (do (println :server-error))
+
+                  400 (do (println :invalid-url))
+
+                  429 (do (println :rate-limit))
+
+                  (do
+                    (println :unknown-error)))))
             "POST"
-            (pr-str {:url url})
-            (clj->js {"Accept" "application/edn"
-                      "Content-Type" "application/edn"})))
+            (js/JSON.stringify #js {:url url})
+            (clj->js {"Accept" "application/json"
+                      "Content-Type" "application/json"})))
 
 ;; ui
 
@@ -49,14 +63,12 @@
 
 (rum/defc copy-button
   < {:after-render (fn [state]
-                     (println (pr-str state))
                      (let [[url] (:rum/args state)
                            button (rum/ref-node state "button")
                            clip (js/ClipboardJS. button (clj->js {:text (constantly url)}))]
                        (assoc state :clip clip)))
      :will-unmount (fn [state]
                      (let [clip (:clip state)]
-                       (println :destroying-clip!)
                        (.destroy clip)
                        (dissoc state :clip)))}
   [url]
