@@ -9,6 +9,7 @@
 (rum/defc url-input < rum/reactive
   [state]
   (let [{:keys [url
+                alias
                 error
                 ongoing-request]} (rum/react state)]
     [:form
@@ -24,20 +25,30 @@
        :on-click (fn [ev]
                    (.preventDefault ev)
                    (swap! state assoc :ongoing-request true)
-                   (-> (io/shorten! url)
+                   (-> (if (not (empty? (clojure.string/trim alias)))
+                         (io/alias! url alias)
+                         (io/shorten! url))
                        (p/then
                         (fn [shortened]
                           (let [short-urls (take 3 (conj (:short-urls @state) shortened))]
                             (swap! state assoc
                                    :url (:url shortened)
                                    :error nil
+                                   :alias ""
                                    :short-urls short-urls
                                    :ongoing-request false))))
                        (p/catch (fn [err]
                                   (swap! state assoc
                                          :error err
                                          :ongoing-request false)))))}
-      "Encoger"]]))
+      "Encoger"]
+     [:input {:type "text"
+              :id "alias"
+              :disabled (if ongoing-request "disabled" "")
+              :value alias
+              :on-change (fn [ev]
+                           (swap! state assoc :alias (.-value (.-target ev))))
+              }]]))
 
 (rum/defcs copy-button
   < (rum/local false ::copied?)
@@ -90,6 +101,7 @@
 
 (defonce app-state
   (atom {:url ""
+         :alias ""
          :error nil
          :short-urls []
          :ongoing-request false}))

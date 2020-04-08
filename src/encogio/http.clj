@@ -39,10 +39,12 @@
         (if (enc/valid-word? alias)
           (alias-handler conn valid-url alias)
           {:status 400
-           :body "Invalid alias"})
+           :body {:code "invalid-alias"
+                  :cause "Invalid alias"}})
         (shorten-handler conn valid-url))
       {:status 400
-       :body "Invalid URL"})))
+       :body {:code "invalid-url"
+              :cause "Invalid URL"}})))
     
 (defn redirect-handler
   [conn id]
