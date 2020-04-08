@@ -2,6 +2,7 @@
   (:require
    [encogio.core :as enc]
    [encogio.url :as url]
+   [encogio.client.ui :as ui]
    [encogio.config :as config]
    [encogio.redis :as redis]
    [clojure.string :as s]
