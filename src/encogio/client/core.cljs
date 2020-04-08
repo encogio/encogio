@@ -154,10 +154,20 @@
          :short-urls []
          :ongoing-request false}))
 
-(defn mount!
+(defn start!
   []
+  (when-let [short-urls (io/read-shortened-urls!)]
+    (swap! app-state assoc :short-urls short-urls))
+
   (rum/mount (shortened-links app-state) (dom/getElement "shortened-links"))
   (rum/mount (url-input app-state) (dom/getElement "shorten-form"))
-  )
 
-(mount!)
+  (add-watch app-state
+             :storage
+             (fn [_ _ old new]
+               (when-not (= (:short-urls old)
+                            (:short-urls new))
+                 (io/write-shortened-urls! (:short-urls new))))))
+
+(start!)
+
