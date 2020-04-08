@@ -15,15 +15,20 @@
     [:form
      [:.field.has-addons.has-addons-centered
       [:.control.is-expanded
-       [:input.input
+       [:input
         {:type "text"
          :id "url"
+         :class (if (= error :invalid-url)
+                  "input is-danger"
+                  "input")
          :placeholder "Escribe aquí tu enlace para encogerlo"
          :disabled (if ongoing-request "disabled" "")
          :auto-focus true
          :value url
          :on-change (fn [ev]
-                      (swap! state assoc :url (.-value (.-target ev))))}]]
+                      (swap! state assoc :error nil :url (.-value (.-target ev))))}]
+       (when (= error :invalid-url)
+         [:p.help.is-danger "URL no válida"])]
       [:.control
        [:button.button.is-primary
         {:disabled (if ongoing-request "disabled" "")
@@ -37,7 +42,7 @@
                           (fn [shortened]
                             (let [short-urls (take 3 (conj (:short-urls @state) shortened))]
                               (swap! state assoc
-                                     :url (:url shortened)
+                                     :url (:url shortened) ;; todo: short url instead, copy interaction
                                      :error nil
                                      :alias ""
                                      :short-urls short-urls
@@ -54,14 +59,21 @@
       [:.control
        [:input.input
         {:type "text"
+         :class (if (#{:invalid-alias :used-alias} error)
+                  "input is-danger"
+                  "input")
          :id "alias"
          :placeholder "Elige un alias (opcional)"
          :disabled (if ongoing-request "disabled" "")
          :value alias
          :on-change (fn [ev]
                       (swap! state assoc :alias (.-value (.-target ev))))}]
-       #_[:p.help ""]
-       ]]]))
+       (cond
+         (= error :invalid-alias)
+         [:p.help.is-danger "Alias no válido"]
+
+         (= error :used-alias)
+         [:p.help.is-danger "Alias en uso"])]]]))
 
 (rum/defcs copy-button
   < (rum/local false ::copied?)

@@ -48,6 +48,7 @@
                                      "invalid-alias")
                                (reject :invalid-alias)
                                (reject :invalid-url))
+                          409 (reject :used-alias)
                           429 (reject :rate-limit)
                           (reject :network-error))))]
        (xhr/send api-url callback "POST" json headers timeout)))))
