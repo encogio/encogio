@@ -6,6 +6,9 @@
    [goog.dom :as dom]
    [promesa.core :as p]))
 
+(def shorten-error? #{:invalid-url :server-error :rate-limit :network-error})
+(def alias-error? #{:invalid-alias :used-alias})
+
 (rum/defc url-input < rum/reactive
   [state]
   (let [{:keys [url
@@ -18,7 +21,7 @@
        [:input
         {:type "text"
          :id "url"
-         :class (if (= error :invalid-url)
+         :class (if (shorten-error? error)
                   "input is-danger"
                   "input")
          :placeholder "Escribe aquí tu enlace para encogerlo"
@@ -27,8 +30,18 @@
          :value url
          :on-change (fn [ev]
                       (swap! state assoc :error nil :url (.-value (.-target ev))))}]
-       (when (= error :invalid-url)
-         [:p.help.is-danger "URL no válida"])]
+       (cond
+         (= error :invalid-url)
+         [:p.help.is-danger "URL no válida"]
+
+         (= error :server-error)
+         [:p.help.is-danger "Error en el servidor"]
+
+         (= error :rate-limit)
+         [:p.help.is-danger "Has encogido demasiadas URLs, prueba más tarde"]
+
+         (= error :network-error)
+         [:p.help.is-danger "No hemos podido contactar con el servidor"])]
       [:.control
        [:button.button.is-primary
         {:disabled (if ongoing-request "disabled" "")
@@ -44,7 +57,6 @@
                               (swap! state assoc
                                      :url (:url shortened) ;; todo: short url instead, copy interaction
                                      :error nil
-                                     :alias ""
                                      :short-urls short-urls
                                      :ongoing-request false))))
                          (p/catch (fn [err]
@@ -59,7 +71,7 @@
       [:.control
        [:input.input
         {:type "text"
-         :class (if (#{:invalid-alias :used-alias} error)
+         :class (if (alias-error? error)
                   "input is-danger"
                   "input")
          :id "alias"
