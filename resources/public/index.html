@@ -3,32 +3,94 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Encog.io: Encoge enlaces</title>
   <meta name="description" content="Encog.io">
-  <link rel="stylesheet" href="/css/main.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">  
+  <title>Encog.io: Encoge enlaces</title>
+  <link rel="stylesheet" href="/css/bulma.css">
+  <link rel="stylesheet" href="/css/font-awesome.css">
 </head>
 
 <body>
-  <section class="container">
-    <section class="intro">
-      <h1>Encog.io</h1>
-      <h2>Encoge URLs, URL corta, acortador</h2>
-    </section>
-    <section id="shorten-form">
-      <form>
-	<input type="text" id="url" autofocus></input>
-	<button class="submit">Encoger</button>
-	<input type="text" id="alias"></input>
-      </form>
-    </section>
-    <section id="error-message">
-    </section>
-    <section id="shortened-links">
-      <ul></ul>
-    </section>
-    <section class="footer">
-    </section>
+  <nav class="navbar"
+       role="navigation"
+       aria-label="main navigation">
+    
+    <div class="navbar-brand">
+      <a class="navbar-item" href="http://encog.io">
+	<img src="https://bulma.io/images/bulma-logo.png"
+	     alt=""
+	     width="112"
+	     height="28">
+      </a>
+    </div>
+  </nav>
+  
+  <section class="hero section is-primary is-bold">
+    <div class="hero-body">
+      <div class="title">
+	<h1>Encog.io</h1>
+      </div>
+      <h2 class="subtitle">Encoge URLs, URL corta, acortador</h2>
+    </div>
   </section>
+  
+  <section class="section" id="shorten-form">
+    <form>
+      <div class="field has-addons has-addons-centered">
+	<div class="control is-expanded">
+	  <input class="input"
+		 type="text"
+		 id="url"
+		 placeholder="Escribe aquí tu enlace para encogerlo"
+		 autofocus>
+	</div>
+	<div class="control">
+	  <button class="button is-primary">Encoger</button>
+	</div>
+      </div>
+      <div class="field has-addons">
+	<div class="control">
+	  <a class="button is-static">
+	    http://encog.io/
+	  </a>
+	</div>
+
+	<div class="control">
+	  <input class="input"
+		 type="text"
+		 id="alias"
+		 placeholder="Elige un alias (opcional)">
+	</div>
+
+      </div>
+    </form>   
+  </section>
+
+  <section id="shortened-links" class="section">
+  </section>
+
+  <section class="hero is-info is-bold">
+    <div class="hero-body">
+      <div class="container">
+	<h1 class="title">
+          Primary bold title
+	</h1>
+	<h2 class="subtitle">
+          Primary bold subtitle
+	</h2>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="content has-text-centered">
+      <p>
+	<strong>Encog.io</strong> by <a href="https://github.com/purrgrammer">Alejandro Gómez</a>. The source code is licensed
+	<a href="http://opensource.org/licenses/mit-license.php">MIT</a>.
+      </p>
+    </div>
+  </footer>
+
   <script src="/js/app.js"></script>
 </body>
 </html>
