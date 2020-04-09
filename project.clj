@@ -35,11 +35,22 @@
              :uberjar {:aot :all :main encogio.app}}
 
   :plugins [[lein-cljsbuild "1.1.7"]
-            [lein-figwheel "0.5.18"]]
+            [lein-figwheel "0.5.18"]
+            [lein-scss "0.3.0"]]
 
   :source-paths ["src"]
   :resource-paths ["resources" "target/cljsbuild"]
 
+  :scss {:builds
+         {:develop    {:source-dir "scss/"
+                       :dest-dir   "resources/public/css/"
+                       :executable "sassc"
+                       :args       ["-m" "-I" "scss/" "-t" "nested"]}
+          :production {:source-dir "scss/"
+                       :dest-dir   "resources/public/css/"
+                       :executable "sassc"
+                       :args       ["-I" "scss/" "-t" "compressed"]
+                       :jar        true}}}
   :cljsbuild
   {:builds
    [{:id "min"

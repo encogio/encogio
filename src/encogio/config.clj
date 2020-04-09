@@ -3,7 +3,7 @@
 
 (def site
   {:scheme "http"
-   :host (env :site-host "encogio.herokuapp.com")})
+   :host (env :site-host "encog.io")})
 
 (def rate-limit
   {:limit 1000

@@ -18,6 +18,12 @@ Install Leiningen
 brew install leiningen
 ```
 
+Install [sassc](https://github.com/sass/sassc)
+
+```sh
+brew install sassc
+```
+
 ### Development
 
 Ensure Redis is running:
