@@ -29,7 +29,8 @@
   :uberjar-name "encogio.jar"
   :main encogio.app
   :min-lein-version "2.0.0"
-  :hooks [leiningen.cljsbuild]
+  :hooks [leiningen.cljsbuild
+          leiningen.scss]
 
   :profiles {:dev {:dependencies [[binaryage/devtools "0.9.10"]]}
              :uberjar {:aot :all :main encogio.app}}
@@ -78,6 +79,7 @@
                 :aot-cache true}}]}
 
   :figwheel {:http-server-root "public"
+             :css-dirs ["resources/public/css"]
              :server-port 3449
              :nrepl-port 7002
              :ring-handler encogio.http/app})
