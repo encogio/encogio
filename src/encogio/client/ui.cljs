@@ -5,23 +5,62 @@
    [clojure.spec.alpha :as s]
    [encogio.client.io :as io]))
 
+(def greeting
+  "Este servicio le permite acortar URLs de forma anónima.")
+
 (def empty-state {:url ""
                   :alias ""
                   :input-state :normal
-                  :short-urls []})
+                  :short-urls []
+                  :notification {:kind :link
+                                 :message [:span greeting]}})
 
 (s/def ::state (s/keys ::req-un [::url
                                  ::alias
                                  ::input-state]
-                       ::opt-un [::error]))
+                       ::opt-un [::error
+                                 ::notification]))
 
 (s/def ::input-state #{:normal :waiting :copy :error})
 (s/def ::error #{:invalid-url :invalid-alias :used-alias :server-error :rate-limit :network-error :forbidden-domain})
 (s/def ::alias string?)
 (s/def ::url string?)
+(s/def ::notification (s/keys ::req-un [::kind
+                                        ::message]))
+(s/def ::kind #{:info :error :success :link})
+(s/def ::message any?)
 
-(def shorten-error? #{:invalid-url :server-error :rate-limit :network-error})
-(def alias-error? #{:invalid-alias :used-alias})
+(def shorten-error?
+  #{:invalid-url :server-error :rate-limit :network-error :forbidden-domain})
+(def alias-error?
+  #{:invalid-alias :used-alias})
+
+(defn notify!
+  [state kind message]
+  (let [notification {:kind kind
+                      :message message}]
+    (swap! state assoc :notification notification)))
+
+(rum/defc notifications < rum/static
+  [notification]
+  (case (:kind notification)
+    :error
+    [:.notification.is-danger.is-light
+     (:message notification)]
+
+    :link
+    [:.notification.is-link.is-light
+     (:message notification)]
+
+    :info
+    [:.notification.is-primary.is-light
+     (:message notification)]
+
+    :success
+    [:.notification.is-success.is-light
+     (:message notification)]
+
+    nil))
 
 (def copy-mixin
   {:after-render
@@ -52,6 +91,8 @@
       :ref "button"
       :on-click (fn [ev]
                   (.preventDefault ev)
+                  (notify! state :info
+                           [:span "URL copiada!"])
                   (swap! state assoc
                          :input-state :normal
                          :url ""
@@ -60,26 +101,6 @@
       [:span.icon.is-small
        [:i.fas.fa-copy]]
       [:span "Copiar"]]]))
-
-(rum/defc url-input-error < rum/static
-  [error]
-  (cond
-    (= error :invalid-url)
-    [:p.help.is-danger "URL no válida"]
-
-    (= error :forbidden-domain)
-    [:p.help.is-danger "Las URLs de ese dominio no están permitidas"]
-
-    (= error :server-error)
-    [:p.help.is-danger "Error en el servidor"]
-
-    (= error :rate-limit)
-    [:p.help.is-danger "Has encogido demasiadas URLs, prueba más tarde"]
-
-    (= error :network-error)
-    [:p.help.is-danger "No hemos podido contactar con el servidor"]))
-
-
 
 (defn shorten-url!
   [url alias short-urls state]
@@ -94,8 +115,42 @@
                   :short-url (:short-url shortened)
                   :alias ""
                   :short-urls short-urls
-                  :input-state :copy))))
+                  :input-state :copy))
+         (notify! state :success
+                  [:span "URL acortada con éxito, su nueva URL es  "
+                   [:a {:href (:short-url shortened)} (:short-url shortened)]])
+         ))
       (p/catch (fn [err]
+                 (case err
+                   :invalid-url
+                   (notify! state :error
+                            [:span "URL no válida"])
+
+                   :invalid-alias
+                   (notify! state :error
+                            [:span "Alias no válido. Puede usar letras mayúsculas y minúsculas, guiones - y guiones bajos _."])
+
+                   :used-alias
+                   (notify! state :error
+                            [:span "Alias en uso, elija uno diferente"])
+
+                   :server-error
+                   (notify! state :error
+                            [:span "Ha habido un problema en el servidor y no hemos podido acortar el enlace, inténtelo de nuevo más tarde."])
+
+                   :rate-limit
+                   (notify! state :error
+                            [:span "Ha usado mucho el servicio, póngase en contacto con nosotros si necesita acortar más enlaces."])
+
+                   :network-error
+                   (notify! state :error
+                            [:span "Error al hacer la petición, inténtelo de nuevo más tarde."])
+
+                   :forbidden-domain
+                   (notify! state :error
+                            [:span "Las URLs de este dominio no están permitidas."])
+
+                   nil)
                  (swap! state assoc
                         :error err
                         :input-state :error)))))
@@ -115,7 +170,8 @@
         :id "url"
         :class (cond
                  (= input-state :copy) "input is-success"
-                 (shorten-error? error)  "input is-danger"
+                 (and (= input-state :error)
+                      (shorten-error? error))  "input is-danger"
                  :else "input")
         :placeholder "Escribe aquí tu enlace para encogerlo"
         :disabled (case input-state
@@ -128,6 +184,7 @@
                      (swap! state assoc
                             :input-state :normal
                             :url (.-value (.-target ev))))}]]
+
      [:.control
       (cond
         (= input-state :copy)
@@ -159,7 +216,7 @@
      [:.control
       [:input.input
        {:type "text"
-        :class (if (alias-error? error)
+        :class (if (and (= input-state :error) (alias-error? error))
                  "input is-danger"
                  "input")
         :id "alias"
@@ -169,19 +226,19 @@
                     "")
         :value alias
         :on-change (fn [ev]
-                     (swap! state assoc :alias (.-value (.-target ev))))}]
-      (cond
-        (= error :invalid-alias)
-        [:p.help.is-danger "Alias no válido"]
+                     (swap! state assoc
+                            :input-state :normal
+                            :alias (.-value (.-target ev))))}]]]))
 
-        (= error :used-alias)
-        [:p.help.is-danger "Alias en uso"])]]))
-
-(rum/defc shorten-form
+(rum/defc shorten-form < rum/reactive
   [state]
-  [:form
-   (url-input state)
-   (alias-input state)])
+  (let [{:keys [input-state
+                error
+                notification]} (rum/react state)]
+    [:form
+     (url-input state)
+     (alias-input state)
+     (notifications notification)]))
 
 (rum/defcs copy-button < (rum/local false ::copied?)  rum/reactive copy-mixin
   

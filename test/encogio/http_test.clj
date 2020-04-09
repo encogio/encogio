@@ -55,7 +55,7 @@
 (deftest shorten-rejects-urls-from-app-domain
   (let [url "http://encog.io/asdfsad"
         resp (shorten! url)]        
-    (is (= (:status resp) 400))))
+    (is (= (:status resp) 403))))
 
 ;; shorten: accepted URLs
 

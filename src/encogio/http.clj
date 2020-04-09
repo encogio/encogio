@@ -19,7 +19,7 @@
       {:status 200
        :body {:url url
               :alias (:id result)
-              :short-url (url/urlize (:id result))}})))
+              :short-url (url/urlize config/site (:id result))}})))
 
 (defn alias-handler
   [conn url alias]
@@ -29,19 +29,24 @@
       {:status 200
        :body {:url url
               :alias alias
-              :short-url (url/urlize (:id result))}})))
+              :short-url (url/urlize config/site (:id result))}})))
+
 
 (defn shorten
   [conn req]
   (let [{:keys [url alias]} (:body-params req)]
     (if-let [valid-url (url/validate url)]
-      (if alias
-        (if (enc/valid-word? alias)
-          (alias-handler conn valid-url alias)
-          {:status 400
-           :body {:code "invalid-alias"
-                  :cause "Invalid alias"}})
-        (shorten-handler conn valid-url))
+      (let [host (.getHost valid-url)
+            url-str (.toString valid-url)]
+        (if (= host (:host config/site))
+          {:status 403}
+          (if alias
+            (if (enc/valid-word? alias)
+              (alias-handler conn url-str alias)
+              {:status 400
+               :body {:code "invalid-alias"
+                      :cause "Invalid alias"}})
+            (shorten-handler conn url-str))))
       {:status 400
        :body {:code "invalid-url"
               :cause "Invalid URL"}})))
