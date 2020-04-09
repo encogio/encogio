@@ -3,6 +3,12 @@
    [encogio.core :as enc]
    [taoensso.carmine :as car :refer [wcar]]))
 
+(defn healthy?
+  [conn]
+  (try
+    (= "PONG" (wcar conn (car/ping)))
+    (catch Exception _ false)))
+
 (defn- key-exists?
   [conn k]
   (= 1 (wcar conn (car/exists k))))

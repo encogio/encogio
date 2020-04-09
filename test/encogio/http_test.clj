@@ -3,6 +3,7 @@
    [encogio.redis :as redis]
    [taoensso.carmine :as car :refer [wcar]]
    [encogio.http :as http :refer [app]]
+   [encogio.config :as config]
    [encogio.config :refer [redis-conn]]
    [clojure.test :refer [deftest is]]))
 
@@ -52,8 +53,8 @@
         resp (shorten! url)]        
     (is (= (:status resp) 400))))
 
-(deftest shorten-rejects-urls-from-app-domain
-  (let [url "http://encog.io/asdfsad"
+(deftest shorten-rejects-urls-from-site-domain
+  (let [url (str "http://" (:host config/site) "/asdfsad")
         resp (shorten! url)]        
     (is (= (:status resp) 403))))
 

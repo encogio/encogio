@@ -18,7 +18,7 @@
     (gen/return (URL. protocol host port path))))
 
 (deftest redis-is-healthy
-  (is (= "PONG" (wcar test-server (car/ping)))))
+  (is (redis/healthy? test-server)))
 
 (defspec stored-urls-can-be-expanded-by-their-id
   1000
