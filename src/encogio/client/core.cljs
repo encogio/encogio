@@ -2,7 +2,6 @@
   (:require
    [encogio.client.ui :as ui]
    [rum.core :as rum]
-   [cljsjs.clipboard]
    [goog.dom :as dom]))
 
 (defonce app-state (atom ui/empty-state))

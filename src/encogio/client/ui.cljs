@@ -1,6 +1,7 @@
 (ns encogio.client.ui
   (:require
    [rum.core :as rum]
+   [cljsjs.clipboard]
    [promesa.core :as p]
    [clojure.spec.alpha :as s]
    [encogio.client.io :as io]))
