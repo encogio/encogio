@@ -28,6 +28,7 @@
                             (resolve {:url (.-url resp)
                                       :short-url (aget resp "short-url")}))
                           500 (reject :server-error)
+                          403 (reject :forbidden-domain)
                           400 (reject :invalid-url)
                           429 (reject :rate-limit)
                           (reject :network-error))))]
@@ -47,7 +48,7 @@
                             (resolve {:url (.-url resp)
                                       :short-url (aget resp "short-url")}))
                           500 (reject :server-error)
-                          400 (if (= (.-code (.getResponseJson response))
+                          403 (reject :forbidden-domain)                                                  400 (if (= (.-code (.getResponseJson response))
                                      "invalid-alias")
                                (reject :invalid-alias)
                                (reject :invalid-url))
