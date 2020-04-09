@@ -80,7 +80,6 @@
    (fn [state]
      (let [clip (:clip state)]
        (.off clip "success")
-       (.destroy clip)
        (dissoc state :clip)))})
 
 (rum/defcs url-copy-button < (rum/local false ::copied?)  rum/reactive copy-mixin
