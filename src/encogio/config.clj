@@ -9,8 +9,8 @@
    :host (env :site-host "encog.io")})
 
 (def rate-limit
-  {:limit 1000
-   :limit-duration 3600})
+  {:limit 100
+   :limit-duration (* 24 3600)})
 
 (def redis-conn
   {:pool {}
