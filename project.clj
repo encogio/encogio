@@ -29,6 +29,7 @@
   :uberjar-name "encogio.jar"
   :main encogio.app
   :min-lein-version "2.0.0"
+  :hooks [leiningen.cljsbuild]
 
   :profiles {:dev {:dependencies [[binaryage/devtools "0.9.10"]]}
              :uberjar {:aot :all :main encogio.app}}
@@ -41,7 +42,17 @@
 
   :cljsbuild
   {:builds
-   [{:id "app"
+   [{:id "min"
+     :jar true
+     :source-paths ["src/encogio/client/"]
+     :compiler {:main "encogio.client.core"
+                :output-to "target/cljsbuild/public/js/app.js"
+                :output-dir "target/cljsbuild/public/js"
+                :optimizations :advanced
+                :pretty-print false
+                :aot-cache true}}
+
+    {:id "dev"
      :figwheel true
      :source-paths ["src"]
      :watch-paths ["src"]
@@ -53,14 +64,6 @@
                 :optimizations :none
                 :pretty-print true
                 :preloads [devtools.preload]                
-                :aot-cache true}}
-    {:id "min"
-     :source-paths ["src"]
-     :compiler {:output-to "target/cljsbuild/public/js/app.js"
-                :output-dir "target/cljsbuild/public/js"
-                :source-map "target/cljsbuild/public/js/app.js.map"
-                :optimizations :advanced
-                :pretty-print false
                 :aot-cache true}}]}
 
   :figwheel {:http-server-root "public"
