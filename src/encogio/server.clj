@@ -1,4 +1,4 @@
-(ns encogio.app
+(ns encogio.server
   (:require
    [encogio.http :as http]
    [encogio.config :as config]

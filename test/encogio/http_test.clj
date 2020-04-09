@@ -2,34 +2,46 @@
   (:require
    [encogio.redis :as redis]
    [taoensso.carmine :as car :refer [wcar]]
+   [muuntaja.core :as m]
+   [encogio.auth :as auth]
    [encogio.http :as http :refer [app]]
    [encogio.config :as config]
    [encogio.config :refer [redis-conn]]
    [clojure.test :refer [deftest is]]))
 
+(defn post-shorten!
+  ([body]
+   (post-shorten! body {:auth? true}))
+  ([body {:keys [auth?]}]
+   (let [headers {"content-type" "application/json"
+                  "accept" "application/json"}
+         req  {:request-method :post
+               :headers (if auth?
+                          (assoc headers
+                                 "authorization"
+                                 (str "Token " (auth/create-token {:user-id :anonymous})))
+                          headers)
+               :uri "/api/shorten"
+               :body (m/encode "application/json" body)}
+         resp (app req)]
+     (if (= 200 (:status resp))
+       (update resp :body #(m/decode "application/json" (slurp %)))
+       resp))))
+
 (defn shorten!
   ([url]
-   (let [req
-         {:request-method :post
-          :headers {"content-type" "application/edn"
-                    "accept" "application/edn"}
-          :uri "/api/shorten"
-          :body (pr-str {:url url})}
-         resp (app req)]
-     (if (= 200 (:status resp))
-       (update resp :body #(clojure.edn/read-string (slurp %)))
-       resp)))
+   (post-shorten! {:url url}))
   ([url alias]
-   (let [req
-         {:request-method :post
-          :headers {"content-type" "application/edn"
-                    "accept" "application/edn"}
-          :uri "/api/shorten"
-          :body (pr-str {:url url :alias alias})}
-         resp (app req)]
-     (if (= 200 (:status resp))
-       (update resp :body #(clojure.edn/read-string (slurp %)))
-       resp))))
+   (post-shorten! {:url url :alias alias})))
+
+(defn anon-shorten!
+  ([url]
+   (post-shorten! {:url url}
+                  {:auth? false}))
+  ([url alias]
+   (post-shorten! {:url url
+                   :alias alias}
+                  {:auth? false})))
 
 ;; shorten: invalid URLs
 
@@ -57,6 +69,13 @@
   (let [url (str "http://" (:host config/site) "/asdfsad")
         resp (shorten! url)]        
     (is (= (:status resp) 403))))
+
+;; shorten: auth
+
+(deftest shorten-returns-unauthorized-if-no-auth-token
+  (let [url "http://google.com"
+        resp (anon-shorten! url)]
+    (is (= (:status resp) 401))))
 
 ;; shorten: accepted URLs
 

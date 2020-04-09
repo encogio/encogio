@@ -1,6 +1,9 @@
 (ns encogio.config
   (:require [environ.core :refer [env]]))
 
+(def secret-key
+  (env :secret-key "4eUE0og3wbxcTfWJYdKhpPY41mAakZ3oC63ngT4u"))
+
 (def site
   {:scheme "http"
    :host (env :site-host "encog.io")})

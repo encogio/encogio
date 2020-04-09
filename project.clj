@@ -21,19 +21,21 @@
                  [metosin/reitit-middleware "0.4.2"]
                  ;; redis client
                  [com.taoensso/carmine "2.20.0-RC1"]
+                 ;; auth(z)
+                 [buddy/buddy-auth "2.2.0"]
                  ;; generative testing
                  [org.clojure/test.check "1.0.0"]]
   
   :repl-options {:init-ns encogio.core}
 
   :uberjar-name "encogio.jar"
-  :main encogio.app
+  :main encogio.server
   :min-lein-version "2.0.0"
   :hooks [leiningen.cljsbuild
           leiningen.scss]
 
   :profiles {:dev {:dependencies [[binaryage/devtools "0.9.10"]]}
-             :uberjar {:aot :all :main encogio.app}}
+             :uberjar {:aot :all :main encogio.server}}
 
   :plugins [[lein-cljsbuild "1.1.7"]
             [lein-figwheel "0.5.18"]

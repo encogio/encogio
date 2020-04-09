@@ -2,15 +2,20 @@
   (:require
    [promesa.core :as p]
    [clojure.spec.alpha :as s]
-   [goog.net.XhrIo :as xhr]))
+   [goog.net.XhrIo :as xhr])
+  (:require-macros
+   [encogio.client.token :refer [deftoken]]))
 
 ;; api
 
 (def timeout 30000)
 
+(deftoken token)
+
 (def headers
   (clj->js {"Accept" "application/json"
-            "Content-Type" "application/json"}))
+            "Content-Type" "application/json"
+            "Authorization" (str "Token " token)}))
 
 (def api-url "/api/shorten")
 

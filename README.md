@@ -53,9 +53,10 @@ Set environment variables:
  - REDIS_URL: default to 127.0.0.1
  - SITE_HOST: default to encog.io
  - PORT: default to 8000
+ - SECRET_KEY: private key for signing tokens
 
 Run it
 
 ```sh
-java $JVM_OPTS -cp target/encogio.jar clojure.main -m encogio.app
+java $JVM_OPTS -cp target/encogio.jar clojure.main -m encogio.server
 ```

@@ -4,6 +4,7 @@
    [encogio.url :as url]
    [encogio.config :as config]
    [encogio.redis :as redis]
+   [encogio.auth :as auth]
    [clojure.string :as s]
    [ring.util.response :as resp :refer [resource-response]]
    [reitit.ring :as ring]
@@ -72,8 +73,7 @@
   (m/create
    (m/select-formats
     m/default-options
-    ["application/json"
-     "application/edn"])))
+    ["application/json"])))
 
 (def content-negotiation-middleware
   [muuntaja/format-negotiate-middleware
@@ -96,8 +96,10 @@
                 (handler request))))}))
 
 (def api-middleware
-  (conj content-negotiation-middleware
-        (rate-limit-middleware config/redis-conn config/rate-limit)))
+  [muuntaja/format-negotiate-middleware
+   muuntaja/format-response-middleware
+   muuntaja/format-request-middleware
+   (rate-limit-middleware config/redis-conn config/rate-limit)])
 
 (def router
   (ring/router
@@ -106,8 +108,10 @@
 
     ["/api" {:muuntaja content-negotiation
              :middleware api-middleware}
-     ["/shorten" {:post #(shorten config/redis-conn %)}]
-     ["/shorten/" {:post #(shorten config/redis-conn %)}]]
+     ["/shorten" {:post {:middleware auth/auth-middleware
+                         :handler #(shorten config/redis-conn %)}}]
+     ["/shorten/" {:post {:middleware auth/auth-middleware
+                          :handler #(shorten config/redis-conn %)}}]]
     
     ["/:id" {:get #(redirect config/redis-conn %)}]]))
 
