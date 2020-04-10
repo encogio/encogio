@@ -13,18 +13,23 @@
   [conn k]
   (= 1 (wcar conn (car/exists k))))
 
-(defn- set-key!
+(defn- set-new-key!
   [conn k v]
-  (if (key-exists? conn k)
-    {:encogio.anomalies/category :encogio.anomalies/conflict}
-    (let [[_ _ _ [set?]] (wcar conn
-                           (car/watch k)
-                           (car/multi)
-                           (car/set k v)
-                           (car/exec))]
-      (if (= set? "OK")
-        {:key k :value v}
-        {:encogio.anomalies/category :encogio.anomalies/conflict}))))
+  (let [set?
+        (wcar conn
+          (car/eval*
+   "local exists;
+    exists = redis.call('exists', KEYS[1]);
+    if tonumber(exists) == 0 then
+      return redis.call('set', KEYS[1], KEYS[2]);
+    else
+      return redis.status_reply('duplicate key');
+    end;"
+   2 k v))]
+    (if (= set? "OK")
+      {:key k :value v}
+      {:encogio.anomalies/category
+       :encogio.anomalies/conflict})))
 
 ;; keys
 
@@ -51,7 +56,7 @@
    (store-url! conn url (unique-id conn)))
   ([conn url id]
    (let [id-key (make-id-key id)
-         result (set-key! conn id-key url)]
+         result (set-new-key! conn id-key url)]
      (if (:encogio.anomalies/category result)
        (recur conn url (unique-id conn))
        {:url (:value result)
@@ -60,7 +65,7 @@
 (defn alias-url!
   [conn url id]
   (let [id-key (make-id-key id)
-        result (set-key! conn id-key url)]
+        result (set-new-key! conn id-key url)]
     (if (:encogio.anomalies/category result)
       result
       {:url (:value result)
