@@ -2,6 +2,7 @@
   (:require
    [rum.core :as rum]
    [cljsjs.clipboard]
+   [clojure.string :refer [trim blank?]]
    [promesa.core :as p]
    [clojure.spec.alpha :as s]
    [encogio.client.io :as io]))
@@ -21,16 +22,23 @@
                                  ::alias
                                  ::input-state]
                        ::opt-un [::error
-                                 ::notification]))
+                                 ::notification
+                                 ::short-url]))
 
 (s/def ::input-state #{:normal :waiting :copy :error})
-(s/def ::error #{:invalid-url :invalid-alias :used-alias :server-error :rate-limit :network-error :forbidden-domain})
+
 (s/def ::alias string?)
 (s/def ::url string?)
+
+(s/def ::error #{:invalid-url :invalid-alias :used-alias :server-error :rate-limit :network-error :forbidden-domain})
+
+
 (s/def ::notification (s/keys ::req-un [::kind
                                         ::message]))
 (s/def ::kind #{:info :error :success :link})
 (s/def ::message any?)
+
+(s/def ::short-url string?)
 
 (def shorten-error?
   #{:invalid-url :server-error :rate-limit :network-error :forbidden-domain})
@@ -68,59 +76,46 @@
   {:after-render
    (fn [state]
      (let [[text] (:rum/args state)
-           copied? (get state ::copied?)
            button (rum/ref-node state "button")
-           clip (js/ClipboardJS. button
-                                 #js {:text (constantly text)})]
-       (.on clip "success" (fn [result]
-                             (reset! copied? true)
-                             (js/setTimeout #(reset! copied? false) 2000)))
+           clip (js/ClipboardJS. button  #js {:text (constantly text)})]
        (assoc state :clip clip)))
-   
    :will-unmount
    (fn [state]
-     (let [clip (:clip state)]
-       (.off clip "success")
-       (dissoc state :clip)))})
+     (dissoc state :clip))})
 
-(rum/defcs url-copy-button < (rum/local false ::copied?)  rum/reactive copy-mixin
-  
-  [local url state]
-  (let [copied? (rum/react (::copied? local))]
-    [:button
-     {:class "button is-light is-success"
-      :ref "button"
-      :on-click (fn [ev]
-                  (.preventDefault ev)
-                  (notify! state :info
-                           [:span "Enlace copiado con éxito al portapapeles."])
-                  (swap! state assoc
-                         :input-state :normal
-                         :url ""
-                         :short-url ""))}
-     [:div
-      [:span.icon.is-small
-       [:i.fas.fa-copy]]
-      [:span "Copiar"]]]))
+(rum/defc url-copy-button <  copy-mixin
+  [url state]
+  [:button
+   {:class "button is-light is-success"
+    :ref "button"
+    :on-click (fn [ev]
+                (.preventDefault ev)
+                (notify! state :info
+                         [:span "Enlace copiado con éxito al portapapeles."])
+                (swap! state assoc
+                       :input-state :normal
+                       :url ""
+                       :short-url ""))}
+   [:div
+    [:span.icon.is-small
+     [:i.fas.fa-copy]]
+    [:span "Copiar"]]])
 
 (defn shorten-url!
-  [url alias short-urls state]
-  (-> (if (not (empty? (clojure.string/trim alias)))
-        (io/alias! url alias)
+  [url alias state]
+  (-> (if-not (blank? alias)
+        (io/alias! url (trim alias))
         (io/shorten! url))
       (p/then
        (fn [shortened]
-         (let [short-urls (conj (take 2 short-urls) shortened)]
-           (swap! state assoc
-                  :url (:url shortened)
-                  :short-url (:short-url shortened)
-                  :alias ""
-                  :short-urls short-urls
-                  :input-state :copy))
+         (swap! state assoc
+                :url (:url shortened)
+                :short-url (:short-url shortened)
+                :alias ""
+                :input-state :copy)
          (notify! state :success
                   [:span "Enlace encogido con éxito, tu enlace corto es  "
-                   [:a {:href (:short-url shortened)} (:short-url shortened)]])
-         ))
+                   [:a {:href (:short-url shortened)} (:short-url shortened)]])))
       (p/catch (fn [err]
                  (case err
                    :invalid-url
@@ -162,8 +157,7 @@
                 url
                 short-url
                 alias
-                error
-                short-urls]} (rum/react state)]
+                error]} (rum/react state)]
     [:.field.has-addons.has-addons-centered
      [:.control.is-expanded
       [:input
@@ -185,7 +179,6 @@
                      (swap! state assoc
                             :input-state :normal
                             :url (.-value (.-target ev))))}]]
-
      [:.control
       (cond
         (= input-state :copy)
@@ -199,7 +192,7 @@
           :on-click (fn [ev]
                       (.preventDefault ev)
                       (swap! state assoc :input-state :waiting)
-                      (shorten-url! url alias short-urls state))}
+                      (shorten-url! url alias state))}
          [:div
           [:span.icon.is-small
            [:i.fas.fa-compress-arrows-alt]]
@@ -233,9 +226,7 @@
 
 (rum/defc shorten-form < rum/reactive
   [state]
-  (let [{:keys [input-state
-                error
-                notification]} (rum/react state)]
+  (let [{:keys [notification]} (rum/react state)]
     [:form
      (url-input state)
      (alias-input state)

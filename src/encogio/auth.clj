@@ -2,7 +2,6 @@
   (:require
    [encogio.config :as config]
    [buddy.sign.jwt :as jwt]
-   [buddy.auth :refer [authenticated?]]
    [buddy.auth.middleware :refer [wrap-authentication]]
    [buddy.auth.backends :as backends]))
 

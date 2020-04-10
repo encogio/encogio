@@ -5,6 +5,8 @@
 
 (def ^String alphabet
   "abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ1234567890_-")
+(def base (count alphabet))
+
 (def alphabet-regex
   #"[abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ1234567890_-]+")
 
@@ -19,13 +21,13 @@
   "Encode a positive number using the provided alphabet."
   ([input]
    (base-encode input (bigint input) ""))
-  ([input ^String n ^String res]
+  ([input n ^String res]
    (cond
      (zero? input) (subs alphabet 0 1)
      (zero? n) res
      :else (recur input
-                  (bigint (/ n (count alphabet)))
-                  (str (nth alphabet (mod n (count alphabet))) res)))))
+                  (bigint (/ n base))
+                  (str (nth alphabet (mod n base)) res)))))
 
 (defn base-decode
   "Decode a string into a positive number using the provided alphabet."  
@@ -34,7 +36,7 @@
           (map-indexed (fn [idx c]
                          (* (.indexOf alphabet (int c))
                             (bigint
-                             (Math/pow (count alphabet)
+                             (Math/pow base
                                        (- (count input) idx 1)))))
                        input)))
 
