@@ -53,40 +53,19 @@
                             (resolve {:url (.-url resp)
                                       :short-url (aget resp "short-url")}))
                           500 (reject :server-error)
-                          403 (reject :forbidden-domain)                                                  400 (if (= (.-code (.getResponseJson response))
+                          403 (reject :forbidden-domain)
+                          400 (if (= (.-code (.getResponseJson response))
                                      "invalid-alias")
-                               (reject :invalid-alias)
-                               (reject :invalid-url))
+                                (reject :invalid-alias)
+                                (reject :invalid-url))
                           409 (reject :used-alias)
                           429 (reject :rate-limit)
                           (reject :network-error))))]
        (xhr/send api-url callback "POST" json headers timeout)))))
 
-;; local storage
-
-(def local-storage js/localStorage)
-(def storage-key "encogio.short-urls")
-
-(s/def ::shortened-url (s/keys :req-un [::url
-                                        ::short-url]))
+(s/def ::shortened-url (s/keys :req-un [::url ::short-url]))
 
 (s/def ::url string?)
 (s/def ::short-url string?)
 
-(s/def ::storage-format
-  (s/coll-of ::shortened-url :into []))
 
-(defn read-shortened-urls!
-  []
-  (when-let [raw (.getItem js/localStorage storage-key)]
-    (try
-      (let [result (js->clj (js/JSON.parse raw) :keywordize-keys true)
-            conformed (s/conform ::storage-format result)]
-        (when-not (= conformed :clojure.spec.alpha/invalid)
-          conformed))
-    (catch :default e))))
-
-(defn write-shortened-urls!
-  ([urls]
-   (let [as-str (js/JSON.stringify (clj->js urls))]
-     (.setItem js/localStorage storage-key as-str))))

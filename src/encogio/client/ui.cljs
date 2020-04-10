@@ -7,14 +7,15 @@
    [encogio.client.io :as io]))
 
 (def greeting
-  "Este servicio le permite acortar URLs de forma anónima.")
+  [:p
+   "Si te interesa este proyecto puedes colaborar "
+   [:a {:href "http://encog.io/code"} "aquí"]])
 
 (def empty-state {:url ""
                   :alias ""
                   :input-state :normal
-                  :short-urls []
                   :notification {:kind :link
-                                 :message [:span greeting]}})
+                                 :message greeting}})
 
 (s/def ::state (s/keys ::req-un [::url
                                  ::alias
@@ -92,7 +93,7 @@
       :on-click (fn [ev]
                   (.preventDefault ev)
                   (notify! state :info
-                           [:span "URL copiada!"])
+                           [:span "Enlace copiado con éxito al portapapeles."])
                   (swap! state assoc
                          :input-state :normal
                          :url ""
@@ -117,30 +118,30 @@
                   :short-urls short-urls
                   :input-state :copy))
          (notify! state :success
-                  [:span "URL acortada con éxito, su nueva URL es  "
+                  [:span "Enlace encogido con éxito, tu enlace corto es  "
                    [:a {:href (:short-url shortened)} (:short-url shortened)]])
          ))
       (p/catch (fn [err]
                  (case err
                    :invalid-url
                    (notify! state :error
-                            [:span "URL no válida"])
+                            [:span "Enlace no válido. Asegúrate de que es una URL."])
 
                    :invalid-alias
                    (notify! state :error
-                            [:span "Alias no válido. Puede usar letras mayúsculas y minúsculas, guiones - y guiones bajos _."])
+                            [:span "Puede usar letras mayúsculas y minúsculas, guiones y guiones bajos."])
 
                    :used-alias
                    (notify! state :error
-                            [:span "Alias en uso, elija uno diferente"])
+                            [:span "El alias elegido ya está en uso, escoge uno diferente."])
 
                    :server-error
                    (notify! state :error
-                            [:span "Ha habido un problema en el servidor y no hemos podido acortar el enlace, inténtelo de nuevo más tarde."])
+                            [:span "Ha habido un problema en el servidor y no hemos podido encoger el enlace, inténtelo de nuevo más tarde."])
 
                    :rate-limit
                    (notify! state :error
-                            [:span "Ha usado mucho el servicio, póngase en contacto con nosotros si necesita acortar más enlaces."])
+                            [:span "Ha usado mucho el servicio, póngase en contacto con nosotros si necesita encoger más enlaces."])
 
                    :network-error
                    (notify! state :error
@@ -148,7 +149,7 @@
 
                    :forbidden-domain
                    (notify! state :error
-                            [:span "Las URLs de este dominio no están permitidas."])
+                            [:span "No está permitido acortar enlaces de este dominio."])
 
                    nil)
                  (swap! state assoc
@@ -173,7 +174,7 @@
                  (and (= input-state :error)
                       (shorten-error? error))  "input is-danger"
                  :else "input")
-        :placeholder "Escribe aquí tu enlace para encogerlo"
+        :placeholder "Escribe o pega aquí tu enlace para encogerlo"
         :disabled (case input-state
                     :waiting "disabled"
                     "")
@@ -202,7 +203,7 @@
          [:div
           [:span.icon.is-small
            [:i.fas.fa-compress-arrows-alt]]
-          [:span "Cortar"]]])]]))
+          [:span "Encoger"]]])]]))
 
 (rum/defc alias-input < rum/reactive
   [state]
@@ -239,34 +240,3 @@
      (url-input state)
      (alias-input state)
      (notifications notification)]))
-
-(rum/defcs copy-button < (rum/local false ::copied?)  rum/reactive copy-mixin
-  
-  [state url]
-  (let [copied? (rum/react (::copied? state))
-        classes (if copied?
-                  "button is-small is-light is-success"
-                  "button is-small is-light")]
-    [:button
-     {:class classes
-      :ref "button"}
-     (if copied?
-       [:div
-        [:span.icon.is-small
-         [:i.fas.fa-check]]
-        [:span "Copiar"]]
-       [:div
-        [:span.icon.is-small
-         [:i.fas.fa-copy]]
-        [:span "Copiar"]])]))
-
-(rum/defc shortened-links < rum/reactive
-  [state]
-  [:ul
-   (for [{:keys [url
-                 short-url]} (:short-urls (rum/react state))]
-     [:li.level {:key short-url}
-      [:.level-left [:p url]]
-      [:.level-right
-       [:a {:href short-url} short-url]
-       (copy-button short-url)]])])

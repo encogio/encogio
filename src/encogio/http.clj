@@ -109,9 +109,7 @@
     ["/api" {:muuntaja content-negotiation
              :middleware api-middleware}
      ["/shorten" {:post {:middleware auth/auth-middleware
-                         :handler #(shorten config/redis-conn %)}}]
-     ["/shorten/" {:post {:middleware auth/auth-middleware
-                          :handler #(shorten config/redis-conn %)}}]]
+                         :handler #(shorten config/redis-conn %)}}]]
     
     ["/:id" {:get #(redirect config/redis-conn %)}]]))
 
