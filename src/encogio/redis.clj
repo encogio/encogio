@@ -1,6 +1,7 @@
 (ns encogio.redis
   (:require
    [encogio.core :as enc]
+   [encogio.anomalies :as an]
    [taoensso.carmine :as car :refer [wcar]]))
 
 (defn healthy?
@@ -24,8 +25,7 @@
    2 k v))]
     (if (= set? "OK")
       {:key k :value v}
-      {:encogio.anomalies/category
-       :encogio.anomalies/conflict})))
+      (an/conflict "Can't set duplicate keys"))))
 
 (def counter-key "encogio.counter")
 (def id-prefix "encogio.id:")
@@ -49,7 +49,7 @@
   ([conn url id]
    (let [id-key (make-id-key id)
          result (set-new-key! conn id-key url)]
-     (if (:encogio.anomalies/category result)
+     (if (an/conflict? result)
        (recur conn url (unique-id conn))
        {:url (:value result)
         :id id}))))
@@ -58,7 +58,7 @@
   [conn url id]
   (let [id-key (make-id-key id)
         result (set-new-key! conn id-key url)]
-    (if (:encogio.anomalies/category result)
+    (if (an/conflict? result)
       result
       {:url (:value result)
        :id id})))

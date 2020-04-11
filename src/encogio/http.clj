@@ -5,21 +5,22 @@
    [encogio.config :as config]
    [encogio.redis :as redis]
    [encogio.auth :as auth]
+   [encogio.anomalies :as an]
    [clojure.string :refer [trim]]
    [ring.util.response :as resp :refer [resource-response]]
-   [clojure.spec.alpha :as s]
    [reitit.ring :as ring]
    [reitit.swagger :as swag]
    [reitit.swagger-ui :as swagger-ui]
    [reitit.middleware :as mid]
    [reitit.ring.middleware.muuntaja :as muuntaja]
-   [reitit.coercion.spec :as spec]
+   [reitit.coercion.malli :as schema]
+   [malli.util :as mu]
    [muuntaja.core :as m]))
 
 (defn shorten-handler
   [conn url]
   (let [result (redis/store-url! conn url)]
-    (if (:encogio.anomalies/category result)
+    (if (an/conflict? result)
       {:status 500}
       {:status 200
        :body {:url url
@@ -29,7 +30,7 @@
 (defn alias-handler
   [conn url alias]
   (let [result (redis/alias-url! conn url alias)]
-    (if (:encogio.anomalies/category result)
+    (if (an/conflict? result)
       {:status 409}
       {:status 200
        :body {:url url
@@ -105,18 +106,25 @@
    (rate-limit-middleware config/redis-conn config/rate-limit)
    swag/swagger-feature])
 
-(s/def ::url string?)
+(def shorten-request
+  [:map
+   [:url uri?]
+   [:alias
+    {:optional true}
+    enc/alphabet-regex]])
 
-(s/def ::alias string?)
-(s/def ::short-url string?)
+(def shorten-response
+  [:map
+   [:url  uri?]
+   [:alias enc/alphabet-regex]
+   [:short-url uri?]])
 
-(s/def ::shorten-request (s/keys :req-un [::url]
-                                 :opt-un [::alias]))
-(s/def ::shorten-response (s/keys :req-un [::url
-                                           ::alias
-                                           ::short-url]))
-
-(s/def ::shorten-error-code #{"invalid-url" "invalid-alias"})
+(def shorten-error
+  [:map
+   [:code
+    [:enum
+     "invalid-url"
+     "invalid-alias"]]])
 
 (def base-path (url/site-root config/site))
 
@@ -147,17 +155,29 @@
      ["/docs/*" {:no-doc true
                  :get (swagger-ui/create-swagger-ui-handler swagger-ui-config)}]
      ;; API
-     ["/shorten" {:swagger {:tags ["urls"]}
+     ["/shorten" {:swagger {:tags ["urls"]
+                            :name "Shorten"
+                            :description "Shorten a URL, optionally giving it an alias."}
                   :post {:middleware auth/auth-middleware
-                         :coercion spec/coercion
-                         :parameters {:body ::shorten-request}
-                         :responses {200 {:body ::shorten-response}
+                         :coercion (schema/create
+                                    {;; set of keys to include in error messages
+                                     :error-keys #{#_:type :coercion :in :schema :value :errors :humanized #_:transformed}
+                                     ;; schema identity function (default: close all map schemas)
+                                     :compile mu/closed-schema
+                                     ;; strip-extra-keys (effects only predefined transformers)
+                                     :strip-extra-keys true
+                                     ;; add/set default values
+                                     :default-values true
+                                     ;; malli options
+                                     :options nil})
+                         :parameters {:body shorten-request}
+                         :responses {200 {:body shorten-response}
                                      500 {:description "Server error"}
                                      401 {:description "Authentication error"}
                                      403 {:description "The specified is not allowed to be shortened"}
                                      409 {:description "The specified alias is taken"}
                                      400 {:description "Either the specified URL or alias is not valid"
-                                          :body {:code ::shorten-error-code}}
+                                          :body shorten-error}
                                      429 {:description "You have reached the rate limit"}}
                          :handler #(shorten config/redis-conn %)}}]]
     
