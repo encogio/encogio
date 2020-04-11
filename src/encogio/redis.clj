@@ -9,10 +9,6 @@
     (= "PONG" (wcar conn (car/ping)))
     (catch Exception _ false)))
 
-(defn- key-exists?
-  [conn k]
-  (= 1 (wcar conn (car/exists k))))
-
 (defn- set-new-key!
   [conn k v]
   (let [set?
@@ -31,8 +27,6 @@
       {:encogio.anomalies/category
        :encogio.anomalies/conflict})))
 
-;; keys
-
 (def counter-key "encogio.counter")
 (def id-prefix "encogio.id:")
 (def rate-limit-prefix "encogio.ratelimit:")
@@ -44,8 +38,6 @@
 (defn make-rate-limit-key
   [id]
   (str rate-limit-prefix id))
-
-;; urls
 
 (defn- unique-id
   [conn]
@@ -80,16 +72,29 @@
   [conn {:keys [limit
                 limit-duration]} k]
   (let [key (make-rate-limit-key k)
-        current (wcar conn (car/llen key))]
-    (if (>= current limit)
-      :limit
-      (if (key-exists? conn key)
-        (let [remaining (wcar conn
-                          (car/rpushx key key))]
-          {:remaining (- limit remaining)})
-        (let [[_ _ _ [remaining _]] (wcar conn
-                                      (car/multi)
-                                      (car/rpush key key)
-                                      (car/expire key limit-duration)
-                                      (car/exec))]
-          {:remaining (- limit remaining)})))))
+        [limit? remaining]
+        (wcar conn
+          (car/eval*
+   "local current;
+    local limit;
+
+    current = tonumber(redis.call('llen', KEYS[1]));
+    limit = tonumber(KEYS[2]);
+
+    if current >= limit then
+      return {'ERROR', 'rate limit'};
+    else
+        if tonumber(redis.call('exists', KEYS[1])) == 0 then
+          redis.call('rpush', KEYS[1], KEYS[1]);
+          redis.call('expire', KEYS[1], KEYS[3]);
+          return {'OK', limit - 1};
+        else
+          redis.call('rpushx', KEYS[1], KEYS[1]);
+          return {'OK', limit - current - 1};
+        end;
+    end;"
+   3
+   key limit limit-duration))]
+    (if (= limit? "OK")
+      {:remaining remaining}
+      :limit)))
