@@ -52,17 +52,10 @@
 (deftest rate-limit-limits-after-all-attempts-consumed
   (let [key "rate-limited"
         config {:limit 1 :limit-duration 60}
-        _ (wcar test-server (car/del (redis/make-rate-limit-key key)))]
-    (is (= {:remaining 0} (redis/rate-limit test-server config key)))
-    (is (= :limit (redis/rate-limit test-server config key)))))
-
-(deftest rate-limit-resets-after-limit-duration
-  (let [key "rate-limited"
-        config {:limit 100 :limit-duration 1}
-        _ (wcar test-server (car/del (redis/make-rate-limit-key key)))]
-    (is (= {:remaining 99} (redis/rate-limit test-server config key)))
-    (is (= {:remaining 98} (redis/rate-limit test-server config key)))
-    (is (= {:remaining 97} (redis/rate-limit test-server config key)))
-    (Thread/sleep 1000)
-    (is (= {:remaining 99} (redis/rate-limit test-server config key)))))
-
+        _ (wcar test-server (car/del (redis/make-rate-limit-key key)))
+        [ok rem] (redis/rate-limit test-server config key)]
+    (is (= ok :ok))
+    (is (= 0 rem))
+    (let [[err ttl] (redis/rate-limit test-server config key)]
+      (is (= err :limit))
+      (is (= 60 ttl)))))

@@ -1,8 +1,12 @@
 (ns encogio.redis
   (:require
+   [clojure.java.io :as io]
    [encogio.core :as enc]
    [encogio.anomalies :as an]
    [taoensso.carmine :as car :refer [wcar]]))
+
+(def atomic-set-lua (slurp (io/resource "lua/atomic-set.lua")))
+(def rate-limit-lua (slurp (io/resource "lua/rate-limit.lua")))
 
 (defn healthy?
   [conn]
@@ -12,17 +16,7 @@
 
 (defn- set-new-key!
   [conn k v]
-  (let [set?
-        (wcar conn
-          (car/eval*
-   "local exists;
-    exists = redis.call('exists', KEYS[1]);
-    if tonumber(exists) == 0 then
-      return redis.call('set', KEYS[1], KEYS[2]);
-    else
-      return redis.status_reply('duplicate key');
-    end;"
-   2 k v))]
+  (let [set? (wcar conn (car/eval* atomic-set-lua 2 k v))]
     (if (= set? "OK")
       {:key k :value v}
       (an/conflict "Can't set duplicate keys"))))
@@ -68,34 +62,13 @@
   (wcar conn
     (car/get (make-id-key id))))
 
-; todo: return `:ttl` to support `Retry-After` header
 (defn rate-limit
   [conn {:keys [limit
                 limit-duration]} k]
   (let [key (make-rate-limit-key k)
-        [limit? remaining]
+        [result response]
         (wcar conn
-          (car/eval*
-   "local current;
-    local limit;
-
-    current = tonumber(redis.call('llen', KEYS[1]));
-    limit = tonumber(KEYS[2]);
-
-    if current >= limit then
-      return {'ERROR', 'rate limit'};
-    else
-        if tonumber(redis.call('exists', KEYS[1])) == 0 then
-          redis.call('rpush', KEYS[1], KEYS[1]);
-          redis.call('expire', KEYS[1], KEYS[3]);
-          return {'OK', limit - 1};
-        else
-          redis.call('rpushx', KEYS[1], KEYS[1]);
-          return {'OK', limit - current - 1};
-        end;
-    end;"
-   3
-   key limit limit-duration))]
-    (if (= limit? "OK")
-      {:remaining remaining}
-      :limit)))
+          (car/eval* rate-limit-lua 3 key limit limit-duration))]
+    (if (= result "OK")
+      [:ok response]
+      [:limit response])))

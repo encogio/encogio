@@ -84,6 +84,11 @@
    muuntaja/format-response-middleware
    muuntaja/format-request-middleware])
 
+(defn request->ip
+  [request]
+  (when-let [forwarded-for (get-in request [:headers "x-forwarded-for"])]
+    (trim (re-find #"[^,]*" forwarded-for))))
+
 (defn rate-limit-middleware
   [conn settings]
   (mid/map->Middleware
@@ -91,11 +96,11 @@
     :description "Middleware that rate limits by IP"
     :wrap (fn [handler]
             (fn [request]
-              (if-let [forwarded-for (get-in request [:headers "x-forwarded-for"])]
-                (let [remote-addr (trim (re-find #"[^,]*" forwarded-for))
-                      limit (redis/rate-limit conn settings remote-addr)]
+              (if-let [ip (request->ip request)]
+                (let [[limit ttl] (redis/rate-limit conn settings ip)]
                   (if (= limit :limit)
-                    {:status 429}
+                    {:status 429
+                     :headers {"Retry-After" (str ttl)}}
                     (handler request)))
                 (handler request))))}))
 
