@@ -19,6 +19,10 @@
                  ;; http router & middleware
                  [metosin/reitit-ring "0.4.2"]
                  [metosin/reitit-middleware "0.4.2"]
+                 ;; http api docs
+                 [metosin/reitit-swagger "0.4.2"]
+                 [metosin/reitit-swagger-ui "0.4.2"]
+                 [metosin/reitit-spec "0.4.2"]
                  ;; redis client
                  [com.taoensso/carmine "2.20.0-RC1"]
                  ;; auth(z)

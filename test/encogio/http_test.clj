@@ -19,7 +19,7 @@
                :headers (if auth?
                           (assoc headers
                                  "authorization"
-                                 (str "Token " (auth/create-token {:user-id :anonymous})))
+                                 (str "Bearer " (auth/create-token {:user-id :anonymous})))
                           headers)
                :uri "/api/shorten"
                :body (m/encode "application/json" body)}

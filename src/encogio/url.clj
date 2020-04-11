@@ -10,3 +10,7 @@
 (defn urlize
   [{:keys [scheme host]} k]
   (str scheme "://" host "/" k))
+
+(defn site-root
+  [{:keys [scheme host]}]
+  (str scheme "://" host))

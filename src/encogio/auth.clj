@@ -6,7 +6,8 @@
    [buddy.auth.backends :as backends]))
 
 (def backend
-  (backends/jws {:secret config/secret-key}))
+  (backends/jws {:secret config/secret-key
+                 :token-name "Bearer"}))
 
 (def jwt-middleware
   {:name ::auth

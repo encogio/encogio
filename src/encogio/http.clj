@@ -5,11 +5,15 @@
    [encogio.config :as config]
    [encogio.redis :as redis]
    [encogio.auth :as auth]
-   [clojure.string :as s]
+   [clojure.string :refer [trim]]
    [ring.util.response :as resp :refer [resource-response]]
+   [clojure.spec.alpha :as s]
    [reitit.ring :as ring]
+   [reitit.swagger :as swag]
+   [reitit.swagger-ui :as swagger-ui]
    [reitit.middleware :as mid]
    [reitit.ring.middleware.muuntaja :as muuntaja]
+   [reitit.coercion.spec :as spec]
    [muuntaja.core :as m]))
 
 (defn shorten-handler
@@ -31,7 +35,6 @@
        :body {:url url
               :alias alias
               :short-url (url/urlize config/site (:id result))}})))
-
 
 (defn shorten
   [conn req]
@@ -88,7 +91,7 @@
     :wrap (fn [handler]
             (fn [request]
               (if-let [forwarded-for (get-in request [:headers "x-forwarded-for"])]
-                (let [remote-addr (s/trim (re-find #"[^,]*" forwarded-for))
+                (let [remote-addr (trim (re-find #"[^,]*" forwarded-for))
                       limit (redis/rate-limit conn settings remote-addr)]
                   (if (= limit :limit)
                     {:status 429}
@@ -99,19 +102,67 @@
   [muuntaja/format-negotiate-middleware
    muuntaja/format-response-middleware
    muuntaja/format-request-middleware
-   (rate-limit-middleware config/redis-conn config/rate-limit)])
+   (rate-limit-middleware config/redis-conn config/rate-limit)
+   swag/swagger-feature])
+
+(s/def ::url string?)
+
+(s/def ::alias string?)
+(s/def ::short-url string?)
+
+(s/def ::shorten-request (s/keys :req-un [::url]
+                                 :opt-un [::alias]))
+(s/def ::shorten-response (s/keys :req-un [::url
+                                           ::alias
+                                           ::short-url]))
+
+(s/def ::shorten-error-code #{"invalid-url" "invalid-alias"})
+
+(def base-path (url/site-root config/site))
+
+(def swagger-config
+  {:info {:title "URL shortener API"
+          :description "The API uses JWT authentication. If you are interested in getting a token please [get in touch](mailto:bandarra@protonmail.com)."}
+   :basePath (:host config/site)
+   :securityDefinitions {:jwt {:type "apiKey"
+                               :in "header"
+                               :name "Authorization"}}})
+
+(def swagger-ui-config
+  {:path "/api/docs/"
+   :url "/api/swagger.json"})
 
 (def router
   (ring/router
-   [["" {:get home}]
-    ["/" {:get home}]
+   [["" {:get home :no-doc true}]
+    ["/" {:get home :no-doc true}]
 
     ["/api" {:muuntaja content-negotiation
              :middleware api-middleware}
-     ["/shorten" {:post {:middleware auth/auth-middleware
+     ;; docs
+     ["/swagger.json"
+      {:get {:no-doc true
+             :swagger swagger-config
+             :handler (swag/create-swagger-handler)}}]
+     ["/docs/*" {:no-doc true
+                 :get (swagger-ui/create-swagger-ui-handler swagger-ui-config)}]
+     ;; API
+     ["/shorten" {:swagger {:tags ["urls"]}
+                  :post {:middleware auth/auth-middleware
+                         :coercion spec/coercion
+                         :parameters {:body ::shorten-request}
+                         :responses {200 {:body ::shorten-response}
+                                     500 {:description "Server error"}
+                                     401 {:description "Authentication error"}
+                                     403 {:description "The specified is not allowed to be shortened"}
+                                     409 {:description "The specified alias is taken"}
+                                     400 {:description "Either the specified URL or alias is not valid"
+                                          :body {:code ::shorten-error-code}}
+                                     429 {:description "You have reached the rate limit"}}
                          :handler #(shorten config/redis-conn %)}}]]
     
-    ["/:id" {:get #(redirect config/redis-conn %)}]]))
+    ["/:id" {:get #(redirect config/redis-conn %)
+             :no-doc true}]]))
 
 (def app
   (ring/ring-handler router

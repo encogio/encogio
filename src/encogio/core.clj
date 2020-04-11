@@ -1,5 +1,4 @@
-(ns encogio.core
-  (:require [clojure.spec.alpha :as s]))
+(ns encogio.core)
 
 (set! *warn-on-reflection* true)
 
@@ -9,8 +8,6 @@
 
 (def alphabet-regex
   #"[abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ1234567890_-]+")
-
-(s/def ::word #(re-matches alphabet-regex %))
 
 (defn valid-word?
   "Check if the given word is valid for our alphabet."

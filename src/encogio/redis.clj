@@ -68,6 +68,7 @@
   (wcar conn
     (car/get (make-id-key id))))
 
+; todo: return `:ttl` to support `Retry-After` header
 (defn rate-limit
   [conn {:keys [limit
                 limit-duration]} k]

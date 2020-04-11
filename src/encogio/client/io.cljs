@@ -15,36 +15,15 @@
 (def headers
   (clj->js {"Accept" "application/json"
             "Content-Type" "application/json"
-            "Authorization" (str "Token " token)}))
+            "Authorization" (str "Bearer " token)}))
 
 (def api-url "/api/shorten")
 
-(defn shorten!
-  [url]
+(defn post-json!
+  [body]
   (p/create
    (fn [resolve reject]
-     (let [body #js {:url url}
-           json (js/JSON.stringify body)
-           callback (fn [event]
-                      (let [response (-> event .-target)]
-                        (case (.getStatus response)
-                          200
-                          (let [resp (.getResponseJson response)]
-                            (resolve {:url (.-url resp)
-                                      :short-url (aget resp "short-url")}))
-                          500 (reject :server-error)
-                          403 (reject :forbidden-domain)
-                          400 (reject :invalid-url)
-                          429 (reject :rate-limit)
-                          (reject :network-error))))]
-       (xhr/send api-url callback "POST" json headers timeout)))))
-
-(defn alias!
-  [url alias]
-  (p/create
-   (fn [resolve reject]
-     (let [body #js {:url url :alias alias}
-           json (js/JSON.stringify body)
+     (let [json (js/JSON.stringify body)
            callback (fn [event]
                       (let [response (-> event .-target)]
                         (case (.getStatus response)
@@ -63,9 +42,12 @@
                           (reject :network-error))))]
        (xhr/send api-url callback "POST" json headers timeout)))))
 
-(s/def ::shortened-url (s/keys :req-un [::url ::short-url]))
+(defn shorten!
+  [url]
+  (post-json! #js {:url url}))
 
-(s/def ::url string?)
-(s/def ::short-url string?)
+(defn alias!
+  [url alias]
+  (post-json! #js {:url url :alias alias}))
 
 
