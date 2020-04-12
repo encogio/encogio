@@ -139,7 +139,7 @@
 (rum/defc password-form
   [mode message]
   [:form.box
-   {:action "/+admin/panel" :method "post"}
+   {:action "/admin/panel" :method "post"}
    [:.field
     [:label.label "Password"]
     [(case mode
@@ -208,7 +208,7 @@
 
 (defn route
   [conn]
-  ["/+admin"
+  ["/admin"
    ["/panel"
     {:no-doc true
     :get
