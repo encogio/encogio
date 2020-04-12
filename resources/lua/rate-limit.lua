@@ -10,7 +10,7 @@ if current >= limit then
    return {'ERROR', tonumber(redis.call('ttl', key))};
 else
    if tonumber(redis.call('exists', KEYS[1])) == 0 then
-      redis.call('rpush', key, KEYS[1]);
+      redis.call('rpush', key, 0);
       redis.call('expire', key, duration);
       return {'OK', limit - 1};
    else

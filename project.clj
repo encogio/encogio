@@ -27,6 +27,7 @@
                  [com.taoensso/carmine "2.20.0-RC1"]
                  ;; auth(z)
                  [buddy/buddy-auth "2.2.0"]
+                 [buddy/buddy-hashers "1.4.0"]
                  ;; generative testing
                  [org.clojure/test.check "1.0.0"]]
   

@@ -65,3 +65,50 @@
     (let [[err ttl] (redis/rate-limit test-server config key)]
       (is (= err :limit))
       (is (= 60 ttl)))))
+
+;; queries
+
+(deftest redis-query-count-urls
+  (let [_ (flush!)
+        urls (redis/count-urls test-server)]
+    (is (zero? urls))
+    (redis/store-url! test-server "http://google.com" "goog")
+    (redis/store-url! test-server "http://facebook.com" "fb")
+    (is (= 2 (redis/count-urls test-server)))))
+
+(deftest redis-query-count-clients
+  (let [_ (flush!)
+        config {:limit 10 :limit-duration 60}
+        client1 "a-client"
+        client2 "another-client"
+        clients (redis/count-clients test-server)]
+    (is (zero? clients))
+    (redis/rate-limit test-server config client1)
+    (redis/rate-limit test-server config client2)
+    (is (= 2 (redis/count-clients test-server)))
+    (redis/rate-limit test-server config client1) 
+    (redis/rate-limit test-server config client2)
+    (is (= 2 (redis/count-clients test-server)))))
+
+(deftest redis-query-get-clients
+  (let [_ (flush!)
+        config {:limit 10 :limit-duration 60}
+        client1 "a-client"
+        client2 "another-client"
+        clients (redis/get-clients test-server)]
+    (is (empty? clients))
+    (redis/rate-limit test-server config client1)
+    (is (= #{[client1 {:hits 1 :ttl 60}]}
+           (redis/get-clients test-server)))
+    (redis/rate-limit test-server config client2)
+    (is (= #{[client1 {:hits 1 :ttl 60}]
+             [client2 {:hits 1 :ttl 60}]}
+           (redis/get-clients test-server)))
+    (redis/rate-limit test-server config client2)
+    (is (= #{[client1 {:hits 1 :ttl 60}]
+             [client2 {:hits 2 :ttl 60}]}
+           (redis/get-clients test-server)))
+    (redis/rate-limit test-server config client1)
+    (is (= #{[client1 {:hits 2 :ttl 60}]
+             [client2 {:hits 2 :ttl 60}]}
+           (redis/get-clients test-server)))))

@@ -5,6 +5,7 @@
    [encogio.config :as config]
    [encogio.redis :as redis]
    [encogio.auth :as auth]
+   [encogio.admin :as admin]
    [encogio.anomalies :as an]
    [clojure.string :refer [trim]]
    [ring.util.response :as resp :refer [resource-response]]
@@ -13,6 +14,7 @@
    [reitit.swagger-ui :as swagger-ui]
    [reitit.middleware :as mid]
    [reitit.ring.middleware.muuntaja :as muuntaja]
+   [reitit.ring.middleware.parameters :as params]
    [reitit.coercion.malli :as schema]
    [malli.util :as mu]
    [muuntaja.core :as m]))
@@ -149,6 +151,8 @@
   (ring/router
    [["" {:get home :no-doc true}]
     ["/" {:get home :no-doc true}]
+
+    (admin/route config/redis-conn)
 
     ["/api" {:muuntaja content-negotiation
              :middleware api-middleware}
