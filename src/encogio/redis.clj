@@ -125,19 +125,6 @@
    "encogio.ratelimit:*"
    conn))
 
-#_(scan-keys encogio.config/redis-conn "encogio.ratelimit:*" 0)
-#_(rate-limit encogio.config/redis-conn {:limit 100 :limit-duration 10000} "another-client")
-#_(scan-all
- into
- []
- #(scan-keys encogio.config/redis-conn "encogio.ratelimit:*" %))
-
-#_(scan-all
- (fn [acc in]
-   (into acc in))
- []
- #(scan-keys encogio.config/redis-conn "encogio.ratelimito:*" %))
-
 (defn remove-prefix
   [s prf]
   (subs s (count prf)))

@@ -10,8 +10,3 @@
   (admin/set-admin-password test-server "a password")
   (is (admin/check-admin-password test-server "a password"))
   (is (not (admin/check-admin-password test-server "wrong"))))
-
-
-
-
-
