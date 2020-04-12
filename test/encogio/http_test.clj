@@ -1,5 +1,6 @@
 (ns encogio.http-test
   (:require
+   [encogio.redis-test :refer [flush!]]
    [encogio.redis :as redis]
    [taoensso.carmine :as car :refer [wcar]]
    [muuntaja.core :as m]
@@ -107,7 +108,7 @@
 (deftest shorten-accepts-aliases
   (let [url "http://google.com"
         alias "dont-be-evil"
-        _ (wcar redis-conn (car/del (redis/make-url-key alias)))
+        _ (flush! redis-conn)
         resp (shorten! url alias)]
     (is (= (:status resp) 200))
     (is (= (get-in resp [:body :url]) url))
@@ -116,7 +117,7 @@
 (deftest shorten-rejects-duplicate-aliases
   (let [url "http://facebook.com"
         alias "privacy"
-        _ (wcar redis-conn (car/del (redis/make-url-key alias)))
+        _ (flush! redis-conn)
         resp (shorten! url alias)
         err (shorten! url alias)]
     (is (= (:status resp) 200))
@@ -125,7 +126,7 @@
 (deftest shorten-rejects-invalid-aliases
   (let [url "http://facebook.com"
         alias "not a valid alias"
-        _ (wcar redis-conn (car/del (redis/make-url-key alias)))
+        _ (flush! redis-conn)
         resp (shorten! url alias)]
     (is (= (:status resp) 400))))
 
@@ -142,7 +143,7 @@
 
 (deftest redirect-handler-return-not-found-if-no-match
   (let [id "not-matching"
-        _ (wcar redis-conn (car/del (redis/make-url-key id)))
+        _ (flush! redis-conn)
         req {:request-method :get
              :uri (str "/" id)}        
         resp (app req)]
@@ -159,7 +160,7 @@
 
 (deftest rate-limit-limits-by-remote-address
   (let [addr "123.123.1.1"
-        _ (wcar redis-conn (car/del (redis/make-rate-limit-key addr)))
+        _ (flush! redis-conn)
         {:keys [wrap]} (http/rate-limit-middleware redis-conn
                                                    {:limit 2
                                                     :limit-duration 3600})
@@ -171,7 +172,7 @@
 
 (deftest rate-limit-limits-by-proxies-remote-address
   (let [addr "123.123.1.1"
-        _ (wcar redis-conn (car/del (str redis/rate-limit-prefix addr)))
+        _ (flush! redis-conn)
         {:keys [wrap]} (http/rate-limit-middleware redis-conn
                                                    {:limit 2
                                                     :limit-duration 3600})

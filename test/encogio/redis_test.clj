@@ -10,6 +10,12 @@
 
 (def test-server {:pool {} :spec {:url "127.0.0.0.1"}})
 
+(defn flush!
+  ([]
+   (flush! test-server))
+  ([conn]
+   (wcar conn (car/flushall))))
+
 (def gen-url
   (gen/let [protocol (gen/elements ["http" "https"])
             host (gen/elements ["google.com" "facebook.com" "apple.com"])
@@ -33,7 +39,7 @@
   (prop/for-all [a (gen/not-empty gen/string-alphanumeric)
                  url gen-url]
     (let [u (.toString url)
-          _ (wcar test-server (car/del (redis/make-url-key a)))
+          _ (flush!)
           result (redis/alias-url! test-server u a)
           expanded (redis/get-url! test-server a)]
       (= u expanded))))
@@ -43,7 +49,7 @@
   (prop/for-all [a (gen/not-empty gen/string-alphanumeric)
                  url gen-url]
     (let [u (.toString url)
-          _ (wcar test-server (car/del (redis/make-url-key a)))
+          _ (flush!)
           _ (redis/alias-url! test-server u a)
           conflict (redis/alias-url! test-server u a)]
       (= :encogio.anomalies/conflict
@@ -52,7 +58,7 @@
 (deftest rate-limit-limits-after-all-attempts-consumed
   (let [key "rate-limited"
         config {:limit 1 :limit-duration 60}
-        _ (wcar test-server (car/del (redis/make-rate-limit-key key)))
+        _ (flush!)
         [ok rem] (redis/rate-limit test-server config key)]
     (is (= ok :ok))
     (is (= 0 rem))
