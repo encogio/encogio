@@ -107,7 +107,7 @@
 (deftest shorten-accepts-aliases
   (let [url "http://google.com"
         alias "dont-be-evil"
-        _ (wcar redis-conn (car/del (redis/make-id-key alias)))
+        _ (wcar redis-conn (car/del (redis/make-url-key alias)))
         resp (shorten! url alias)]
     (is (= (:status resp) 200))
     (is (= (get-in resp [:body :url]) url))
@@ -116,7 +116,7 @@
 (deftest shorten-rejects-duplicate-aliases
   (let [url "http://facebook.com"
         alias "privacy"
-        _ (wcar redis-conn (car/del (redis/make-id-key alias)))
+        _ (wcar redis-conn (car/del (redis/make-url-key alias)))
         resp (shorten! url alias)
         err (shorten! url alias)]
     (is (= (:status resp) 200))
@@ -125,7 +125,7 @@
 (deftest shorten-rejects-invalid-aliases
   (let [url "http://facebook.com"
         alias "not a valid alias"
-        _ (wcar redis-conn (car/del (redis/make-id-key alias)))
+        _ (wcar redis-conn (car/del (redis/make-url-key alias)))
         resp (shorten! url alias)]
     (is (= (:status resp) 400))))
 
@@ -142,7 +142,7 @@
 
 (deftest redirect-handler-return-not-found-if-no-match
   (let [id "not-matching"
-        _ (wcar redis-conn (car/del (redis/make-id-key id)))
+        _ (wcar redis-conn (car/del (redis/make-url-key id)))
         req {:request-method :get
              :uri (str "/" id)}        
         resp (app req)]

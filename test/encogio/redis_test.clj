@@ -33,7 +33,7 @@
   (prop/for-all [a (gen/not-empty gen/string-alphanumeric)
                  url gen-url]
     (let [u (.toString url)
-          _ (wcar test-server (car/del (redis/make-id-key a)))
+          _ (wcar test-server (car/del (redis/make-url-key a)))
           result (redis/alias-url! test-server u a)
           expanded (redis/get-url! test-server a)]
       (= u expanded))))
@@ -43,7 +43,7 @@
   (prop/for-all [a (gen/not-empty gen/string-alphanumeric)
                  url gen-url]
     (let [u (.toString url)
-          _ (wcar test-server (car/del (redis/make-id-key a)))
+          _ (wcar test-server (car/del (redis/make-url-key a)))
           _ (redis/alias-url! test-server u a)
           conflict (redis/alias-url! test-server u a)]
       (= :encogio.anomalies/conflict

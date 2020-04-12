@@ -22,12 +22,14 @@
       (an/conflict "Can't set duplicate keys"))))
 
 (def counter-key "encogio.counter")
-(def id-prefix "encogio.id:")
+(def url-prefix "encogio.url:")
 (def rate-limit-prefix "encogio.ratelimit:")
 
-(defn make-id-key
-  [id]
-  (str id-prefix id))
+(defn make-url-key
+  ([id]
+   (str url-prefix "default:" id))
+  ([domain id]
+   (str url-prefix domain ":" id)))
 
 (defn make-rate-limit-key
   [id]
@@ -41,7 +43,7 @@
   ([conn url]
    (store-url! conn url (unique-id conn)))
   ([conn url id]
-   (let [id-key (make-id-key id)
+   (let [id-key (make-url-key id)
          result (set-new-key! conn id-key url)]
      (if (an/conflict? result)
        (recur conn url (unique-id conn))
@@ -50,7 +52,7 @@
   
 (defn alias-url!
   [conn url id]
-  (let [id-key (make-id-key id)
+  (let [id-key (make-url-key id)
         result (set-new-key! conn id-key url)]
     (if (an/conflict? result)
       result
@@ -58,9 +60,12 @@
        :id id})))
 
 (defn get-url!
-  [conn id]
-  (wcar conn
-    (car/get (make-id-key id))))
+  ([conn id]
+   (wcar conn
+     (car/get (make-url-key id))))
+  ([conn domain id]
+   (wcar conn
+     (car/get (make-url-key domain id)))))
 
 (defn rate-limit
   [conn {:keys [limit
