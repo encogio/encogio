@@ -89,4 +89,4 @@
              :css-dirs ["resources/public/css"]
              :server-port 3449
              :nrepl-port 7002
-             :ring-handler encogio.http/app})
+             :ring-handler encogio.server/app})

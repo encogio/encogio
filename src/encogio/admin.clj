@@ -1,12 +1,15 @@
 (ns encogio.admin
   (:require
+   [encogio.time :as time]
+   [encogio.http :as http]
+   [encogio.redis :as redis]
+   [encogio.config :as config]
+   [encogio.url :as url]
    [buddy.hashers :as hashers]
    [reitit.ring.middleware.parameters :as params]
    [rum.core :as rum]
    [clojure.string :as string :refer [trim]]
-   [encogio.redis :as redis]
-   [encogio.config :as config]
-   [encogio.url :as url]
+   [reitit.middleware :as mid]
    [taoensso.carmine :as car :refer [wcar]]))
 
 ;; password
@@ -31,48 +34,6 @@
 
 ;; ui
 
-(def minute 60)
-(def hour (* 60 minute))
-(def day (* 24 hour))
-(def week (* 7 day))
- 
-(defn seconds->duration
-  [seconds]
-  (let [weeks   ((juxt quot rem) seconds week)
-        wk      (first weeks)
-        days    ((juxt quot rem) (last weeks) day)
-        d       (first days)
-        hours   ((juxt quot rem) (last days) hour)
-        hr      (first hours)
-        min     (quot (last hours) minute)
-        sec     (rem (last hours) minute)]
-    (string/join ", "
-                 (filter #(not (string/blank? %))
-                         (conj []
-                               (when (> wk 0) (str wk " week"))
-                               (when (> d 0) (str d " day"))
-                               (when (> hr 0) (str hr " hour"))
-                               (when (> min 0) (str min " min")))))))
-
-(defn seconds->unit
-  [seconds]
-  (let [weeks   ((juxt quot rem) seconds week)
-        wk      (first weeks)
-        days    ((juxt quot rem) (last weeks) day)
-        d       (first days)
-        hours   ((juxt quot rem) (last days) hour)
-        hr      (first hours)
-        min     (quot (last hours) minute)
-        sec     (rem (last hours) minute)]
-    (string/join ", "
-                 (filter #(not (string/blank? %))
-                         (conj []
-                               (when (= wk 1) "week")
-                               (when (= d 1) "day")
-                               (when (= hr 1) "hour")
-                               (when (= min 1) "min")
-                               (when (= sec 1) "sec"))))))
-
 (rum/defc clients-table
   [clients]
   [:table.table.is-fullwidth.is-hoverable.is-bordered.is-striped
@@ -86,7 +47,7 @@
       [:tr
        [:th ip]
        [:th hits]
-       [:th (seconds->duration ttl)]])]])
+       [:th (time/seconds->duration ttl)]])]])
 
 (rum/defc panel
   [{:keys [urls clients healthy? rate-limit site]}]
@@ -115,7 +76,7 @@
      [:div
       [:p.heading "Rate limit"]
       [:p.title
-       (str (:limit rate-limit) " / " (seconds->unit (:limit-duration rate-limit)))
+       (str (:limit rate-limit) " / " (time/seconds->unit (:limit-duration rate-limit)))
        ]]]
     [:.level-item.has-text-centered
      [:div
@@ -205,6 +166,27 @@
       (admin-panel-handler conn)
       (admin-login-handler req :warning "Wrong password"))
     (admin-login-handler req :danger "Password required")))
+
+
+(def login-attempts-settings {:limit 3
+                              :limit-duration 3600
+                              :prefix "encogio.admin.login-attempts:"})
+
+#_(defn rate-limit-middleware
+  [conn]
+  (mid/map->Middleware
+   {:name ::rate-limit
+    :description "Middleware that rate limits by IP"
+    :wrap (fn [handler]
+            (fn [request]
+              ;; todo: rate limit only on POST, use login handlers instead of default
+              (if-let [ip (http/request->ip request)]
+                (let [[limit ttl] (redis/rate-limit conn settings ip)]
+                  (if (= limit :limit)
+                    {:status 429
+                     :headers {"Retry-After" (str ttl)}}
+                    (handler request)))
+                (handler request))))}))
 
 (defn route
   [conn]

@@ -1,11 +1,12 @@
-(ns encogio.http-test
+(ns encogio.server-test
   (:require
    [encogio.redis-test :refer [flush!]]
    [encogio.redis :as redis]
    [taoensso.carmine :as car :refer [wcar]]
    [muuntaja.core :as m]
    [encogio.auth :as auth]
-   [encogio.http :as http :refer [app]]
+   [encogio.http :as http]
+   [encogio.server :as server :refer [app]]
    [encogio.config :as config]
    [encogio.config :refer [redis-conn]]
    [clojure.test :refer [deftest is]]))

@@ -32,8 +32,10 @@
    (str url-prefix domain ":" id)))
 
 (defn make-rate-limit-key
-  [id]
-  (str rate-limit-prefix id))
+  ([id]
+   (str rate-limit-prefix id))
+  ([prefix id]
+   (str prefix id)))
 
 (defn- unique-id
   [conn]
@@ -69,8 +71,10 @@
 
 (defn rate-limit
   [conn {:keys [limit
-                limit-duration]} k]
-  (let [key (make-rate-limit-key k)
+                limit-duration
+                prefix]
+         :or {prefix rate-limit-prefix}} k]
+  (let [key (make-rate-limit-key prefix k)
         [result response]
         (wcar conn
           (car/eval* rate-limit-lua 3 key limit limit-duration))]
@@ -79,13 +83,11 @@
       [:limit response])))
 
 (defn scan-keys
-  ([conn pattern]
-   (scan-keys conn pattern 0))
-  ([conn pattern cursor]
-   (wcar conn
-     (car/scan cursor
-               :match pattern
-               :count 1000))))
+  [conn pattern cursor]
+  (wcar conn
+    (car/scan cursor
+              :match pattern
+              :count 1000)))
 
 (defn scan-all
   "
@@ -149,6 +151,28 @@
          (into acc (zipmap clients stats)))))
     #{}
     "encogio.ratelimit:*"
+    conn))
+
+(defn get-login-attempts
+  [conn]
+  (scan-match
+   (fn [acc client-keys]
+     (if (= 1 (count client-keys))
+       (let [k (first client-keys)
+             [hits ttl] (wcar conn
+                          (car/llen k)
+                          (car/ttl k))
+             client (remove-prefix k rate-limit-prefix)]
+         (conj acc [client {:hits hits :ttl ttl}]))
+       (let [hits (wcar conn
+                    (mapv car/llen client-keys))
+             ttl (wcar conn
+                   (mapv car/ttl client-keys))
+             clients (map #(remove-prefix % rate-limit-prefix) client-keys)
+             stats (map (fn [h t] {:hits h :ttl t}) hits ttl)]
+         (into acc (zipmap clients stats)))))
+    #{}
+    "encogio.admin.login-attempts:*"
     conn))
 
 (defn stats
