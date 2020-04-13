@@ -8,7 +8,7 @@
 (def week (* 7 day))
 
 (defn seconds->duration
-  [seconds]
+  [seconds tr]
   (let [weeks   ((juxt quot rem) seconds week)
         wk      (first weeks)
         days    ((juxt quot rem) (last weeks) day)
@@ -26,7 +26,7 @@
                                (when (> min 0) (str min " min")))))))
 
 (defn seconds->unit
-  [seconds]
+  [seconds tr]
   (let [weeks   ((juxt quot rem) seconds week)
         wk      (first weeks)
         days    ((juxt quot rem) (last weeks) day)

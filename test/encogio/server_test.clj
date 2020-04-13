@@ -6,7 +6,8 @@
    [muuntaja.core :as m]
    [encogio.auth :as auth]
    [encogio.http :as http]
-   [encogio.server :as server :refer [app]]
+   [encogio.ring :refer [app]]
+   [encogio.api :as api]
    [encogio.config :as config]
    [encogio.config :refer [redis-conn]]
    [clojure.test :refer [deftest is]]))
@@ -162,9 +163,9 @@
 (deftest rate-limit-limits-by-remote-address
   (let [addr "123.123.1.1"
         _ (flush! redis-conn)
-        {:keys [wrap]} (http/rate-limit-middleware redis-conn
-                                                   {:limit 2
-                                                    :limit-duration 3600})
+        {:keys [wrap]} (api/rate-limit-middleware redis-conn
+                                                  {:limit 2
+                                                   :limit-duration 3600})
         handler (wrap (constantly {:status 200}))
         req {:headers {"x-forwarded-for" addr}}]
     (is (= 200 (:status (handler req))))
@@ -174,9 +175,9 @@
 (deftest rate-limit-limits-by-proxies-remote-address
   (let [addr "123.123.1.1"
         _ (flush! redis-conn)
-        {:keys [wrap]} (http/rate-limit-middleware redis-conn
-                                                   {:limit 2
-                                                    :limit-duration 3600})
+        {:keys [wrap]} (api/rate-limit-middleware redis-conn
+                                                  {:limit 2
+                                                   :limit-duration 3600})
         handler (wrap (constantly {:status 200}))
         req {:headers {"x-forwarded-for" (str addr ", 122.131.4.1")}}]
     (is (= 200 (:status (handler req))))

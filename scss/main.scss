@@ -1,4 +1,10 @@
 @charset "utf-8";
+@import "bulma/bulma.sass";
 
-@import "bulma/bulma.sass"
+.is-heart {
+    color: $red;
+}
 
+.is-coffee {
+    color: hsl(9, 35%, 50%);
+}

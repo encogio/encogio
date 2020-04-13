@@ -1,7 +1,7 @@
 (ns encogio.api
   (:require
    [encogio.core :as enc]
-   [encogio.http :refer [request->ip]]
+   [encogio.http :as http]
    [encogio.url :as url]
    [encogio.config :as config]
    [encogio.redis :as redis]
@@ -89,7 +89,7 @@
     :description "Middleware that rate limits by IP"
     :wrap (fn [handler]
             (fn [request]
-              (if-let [ip (request->ip request)]
+              (if-let [ip (http/request->ip request)]
                 (let [[limit ttl] (redis/rate-limit conn settings ip)]
                   (if (= limit :limit)
                     {:status 429

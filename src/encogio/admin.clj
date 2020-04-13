@@ -1,5 +1,7 @@
 (ns encogio.admin
   (:require
+   [encogio.i18n :as i18n]
+   [encogio.html :as html]
    [encogio.time :as time]
    [encogio.http :as http]
    [encogio.redis :as redis]
@@ -35,48 +37,48 @@
 ;; ui
 
 (rum/defc clients-table
-  [clients]
+  [tr clients]
   [:table.table.is-fullwidth.is-hoverable.is-bordered.is-striped
    [:thead
     [:tr.is-selected.is-info
-     [:th "IP address"]
-     [:th "Hits"]
-     [:th "TTL"]]]
+     [:th (tr [:admin/ip])]
+     [:th (tr [:admin/requests])]
+     [:th (tr [:admin/ttl])]]]
    [:tbody
     (for [[ip {:keys [hits ttl]}] (sort-by first clients)]
       [:tr
        [:th ip]
        [:th hits]
-       [:th (time/seconds->duration ttl)]])]])
+       [:th (time/seconds->duration ttl tr)]])]])
 
 (rum/defc login-attempts-table
-  [clients]
+  [tr clients]
   [:table.table.is-fullwidth.is-hoverable.is-bordered.is-striped
    [:thead
     [:tr.is-selected.is-info
-     [:th "IP address"]
-     [:th "Attempts"]
-     [:th "TTL"]]]
+     [:th (tr [:admin/ip])]
+     [:th (tr [:admin/login-attempts])]
+     [:th (tr [:admin/ttl])]]]
    [:tbody
     (for [[ip {:keys [hits ttl]}] (sort-by first clients)]
       [:tr
        [:th ip]
        [:th hits]
-       [:th (time/seconds->duration ttl)]])]])
+       [:th (time/seconds->duration ttl tr)]])]])
 
 (rum/defc panel
-  [{:keys [urls clients healthy? rate-limit site]}]
+  [tr {:keys [urls clients healthy? rate-limit site]}]
   [:section.section
    [:nav.level
     [:.level-item.has-text-centered
      [:div
-      [:p.heading "Site"]
+      [:p.heading (tr [:admin/site])]
       [:a.title
        {:href (url/site-root site)}
        (:host site)]]]
     [:.level-item.has-text-centered
      [:div
-      [:p.heading "DB"]
+      [:p.heading (tr [:admin/db])]
       [:p.title
        (if healthy?
          [:span.icon.has-text-success
@@ -85,42 +87,38 @@
           [:i.fas.fa-ban]])]]]
     [:.level-item.has-text-centered
      [:div
-      [:p.heading "URLs"]
+      [:p.heading (tr [:admin/urls])]
       [:p.title urls]]]
     [:.level-item.has-text-centered
      [:div
-      [:p.heading "Rate limit"]
+      [:p.heading (tr [:admin/rate-limit])]
       [:p.title
-       (str (:limit rate-limit) " / " (time/seconds->unit (:limit-duration rate-limit)))]]]
+       (str (:limit rate-limit) " / " (time/seconds->unit (:limit-duration rate-limit) tr))]]]
     [:.level-item.has-text-centered
      [:div
-      [:p.heading "Clients"]
+      [:p.heading (tr [:admin/clients])]
       [:p.title clients]]]]])
 
 (rum/defc admin-panel-html
-  [stats config api-clients login-clients]
-  [:html
-   [:head
-    [:title "Encog.io admin panel"]
-    [:link {:rel "stylesheet" :href "/css/font-awesome.css"}]
-    [:link {:rel "stylesheet" :href "/css/main.css"}]]
-   [:body
-    (panel (merge stats config))
-    [:section.section
-     [:.columns
-      [:.column.is-half.has-text-centered
-       [:h2.title "API clients"
-        (clients-table api-clients)]]
-      [:.column.is-half.has-text-centered
-       [:h2.title "Login attempts"
-        (login-attempts-table login-clients)]]]]]])
+  [tr stats config api-clients login-clients]
+  (html/page {:title (tr [:admin/title])}
+             [:body
+              (panel tr (merge stats config))
+              [:section.section
+               [:.columns
+                [:.column.is-half.has-text-centered
+                 [:h2.title (tr [:admin/api-clients])
+                  (clients-table tr api-clients)]]
+                [:.column.is-half.has-text-centered
+                 [:h2.title (tr [:admin/login-attempts])
+                  (login-attempts-table tr login-clients)]]]]]))
 
 (rum/defc password-form
-  [mode message]
+  [tr mode message]
   [:form.box
    {:action "/admin/panel" :method "post"}
    [:.field
-    [:label.label "Password"]
+    [:label.label (tr [:admin/password])]
     [(case mode
        :danger
        :input.input.is-danger
@@ -148,29 +146,25 @@
      {:type "submit"}]]])
 
 (rum/defc admin-login-form
-  [mode message]
-  [:html
-   [:head
-    [:title "Encog.io admin login"]
-    [:link {:rel "stylesheet" :href "/css/font-awesome.css"}]
-    [:link {:rel "stylesheet" :href "/css/main.css"}]]
-   [:body
-    [(case mode
-       :danger
-       :section.hero.is-danger.is-fullheight
+  [tr mode message]
+  (html/page {:title (tr [:admin/login])}
+             [:body
+              [(case mode
+                 :danger
+                 :section.hero.is-danger.is-fullheight
 
-       :warning
-       :section.hero.is-warning.is-fullheight
+                 :warning
+                 :section.hero.is-warning.is-fullheight
 
-       :section.hero.is-primary.is-fullheight)
-     [:.hero-body
-      [:.container
-       [:.columns.is-centered
-        [:.column
-         (password-form mode message)]]]]]]])
+                 :section.hero.is-primary.is-fullheight)
+               [:.hero-body
+                [:.container
+                 [:.columns.is-centered
+                  [:.column
+                   (password-form tr mode message)]]]]]]))
 
 (defn admin-panel-handler
-  [conn]
+  [tr conn]
   (let [api-clients (redis/get-rate-limits conn)
         login-attempts (redis/get-rate-limits conn
                                               "encogio.admin.login-attempts:*"
@@ -179,15 +173,15 @@
         cfg {:site config/site
              :rate-limit config/rate-limit}]
     {:status 200
-     :body (rum/render-static-markup (admin-panel-html stats cfg api-clients login-attempts))
+     :body (rum/render-static-markup (admin-panel-html tr stats cfg api-clients login-attempts))
      :headers {"Content-Type" "text/html"}}))
 
 (defn admin-login-handler
-  ([req]
-   (admin-login-handler req :info nil))
-  ([req mode message]
+  ([tr]
+   (admin-login-handler tr :info nil))
+  ([tr mode message]
    {:status 401
-    :body (rum/render-static-markup (admin-login-form mode message))
+    :body (rum/render-static-markup (admin-login-form tr mode message))
     :headers {"Content-Type" "text/html"}}))
 
 (def login-attempts-settings {:limit 3
@@ -195,21 +189,18 @@
                               :prefix "encogio.admin.login-attempts:"})
 
 (rum/defc rate-limit
-  [retry-after]
-  [:html
-   [:head
-    [:link {:rel "stylesheet" :href "/css/font-awesome.css"}]
-    [:link {:rel "stylesheet" :href "/css/main.css"}]]
-   [:body
-    [:section.hero.is-danger.is-fullheight.has-text-centered
-     [:.hero-body
-      [:.container.has-text-centered
-       [:h1.title (str "Retry after " (time/seconds->duration retry-after))]]]]]])
+  [retry-after tr]
+  (html/page {:title (tr [:admin/rate-limit])}
+             [:body
+              [:section.hero.is-danger.is-fullheight.has-text-centered
+               [:.hero-body
+                [:.container.has-text-centered
+                 [:h1.title (tr [:admin/retry-after] [(time/seconds->duration retry-after tr)])]]]]]))
 
 (defn rate-limit-handler
-  [retry-after]
+  [retry-after tr]
   {:status 429
-   :body (rum/render-static-markup (rate-limit retry-after))
+   :body (rum/render-static-markup (rate-limit retry-after tr))
    :headers {"Retry-After" (str retry-after)
              "Content-Type" "text/html"}})
 
@@ -224,16 +215,17 @@
                      (:request-method request))
                 ;; login attempt
                 (if-let [ip (http/request->ip request)]
-                  (let [limited? (redis/limited? conn login-attempts-settings ip)]
+                  (let [limited? (redis/limited? conn login-attempts-settings ip)
+                        tr (i18n/request->tr request)]
                     (if limited?
-                      (rate-limit-handler (redis/ttl conn login-attempts-settings ip))
+                      (rate-limit-handler (redis/ttl conn login-attempts-settings ip) tr)
                       (let [response (handler request)]
                         (if (= 200 (:status response))
                           response ;; todo: successful login, reset limit?
                           (let [[cmd res] (redis/rate-limit conn login-attempts-settings ip)]
                             (if (redis/limited? conn login-attempts-settings ip)
-                              (rate-limit-handler (redis/ttl conn login-attempts-settings ip))
-                              (admin-login-handler {} :danger (str res " attempts remaining"))))))))
+                              (rate-limit-handler (redis/ttl conn login-attempts-settings ip) tr)
+                              (admin-login-handler tr :danger (tr [:admin/attempts] [res]))))))))
                   ;; no ip available (dev)
                   (handler request))
                 ;; not login attempt
@@ -243,9 +235,9 @@
   [conn req]
   (if-let [pwd (get-in req [:form-params "password"])]
     (if (check-admin-password conn pwd)
-      (admin-panel-handler conn)
-      (admin-login-handler req :warning "Wrong password"))
-    (admin-login-handler req :danger "Password required")))
+      (admin-panel-handler (i18n/request->tr req) conn)
+      (admin-login-handler (i18n/request->tr req) :warning "Wrong password"))
+    (admin-login-handler (i18n/request->tr req) :danger "Password required")))
 
 (defn route
   [conn]
@@ -254,10 +246,10 @@
     {:no-doc true
     :get
     (fn [req]
-      (admin-login-handler req))
+      (admin-login-handler (i18n/request->tr req)))
     :post
     (fn [req]
       (try-login conn req))
-     :middleware [(login-attempts-middleware conn)
+     :middleware [i18n/middleware
+                  (login-attempts-middleware conn)
                   params/parameters-middleware]}]])
-    
