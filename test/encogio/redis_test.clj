@@ -59,11 +59,14 @@
   (let [key "rate-limited"
         config {:limit 1 :limit-duration 60}
         _ (flush!)
+        _ (is (not (redis/limited? test-server config key)))
         [ok rem] (redis/rate-limit test-server config key)]
     (is (= ok :ok))
+    (is (redis/limited? test-server config key))
     (is (= 0 rem))
     (let [[err ttl] (redis/rate-limit test-server config key)]
       (is (= err :limit))
+      (is (redis/limited? test-server config key))
       (is (= 60 ttl)))))
 
 ;; queries
@@ -86,29 +89,56 @@
     (redis/rate-limit test-server config client1)
     (redis/rate-limit test-server config client2)
     (is (= 2 (redis/count-clients test-server)))
-    (redis/rate-limit test-server config client1) 
+    (redis/rate-limit test-server config client1)
     (redis/rate-limit test-server config client2)
     (is (= 2 (redis/count-clients test-server)))))
 
-(deftest redis-query-get-clients
+(deftest redis-query-get-rate-limits
   (let [_ (flush!)
         config {:limit 10 :limit-duration 60}
         client1 "a-client"
         client2 "another-client"
-        clients (redis/get-clients test-server)]
+        clients (redis/get-rate-limits test-server)]
     (is (empty? clients))
     (redis/rate-limit test-server config client1)
     (is (= #{[client1 {:hits 1 :ttl 60}]}
-           (redis/get-clients test-server)))
+           (redis/get-rate-limits test-server)))
     (redis/rate-limit test-server config client2)
     (is (= #{[client1 {:hits 1 :ttl 60}]
              [client2 {:hits 1 :ttl 60}]}
-           (redis/get-clients test-server)))
+           (redis/get-rate-limits test-server)))
     (redis/rate-limit test-server config client2)
     (is (= #{[client1 {:hits 1 :ttl 60}]
              [client2 {:hits 2 :ttl 60}]}
-           (redis/get-clients test-server)))
+           (redis/get-rate-limits test-server)))
     (redis/rate-limit test-server config client1)
     (is (= #{[client1 {:hits 2 :ttl 60}]
              [client2 {:hits 2 :ttl 60}]}
-           (redis/get-clients test-server)))))
+           (redis/get-rate-limits test-server)))))
+
+(deftest redis-query-get-rate-limits-for-custom-prefix
+  (let [_ (flush!)
+        prefix "admin.login-attempts:"
+        pattern "admin.login-attempts:*"
+        config {:limit 10
+                :limit-duration 60
+                :prefix prefix}
+        client1 "a-client"
+        client2 "another-client"
+        clients (redis/get-rate-limits test-server pattern prefix)]
+    (is (empty? clients))
+    (redis/rate-limit test-server config client1)
+    (is (= #{[client1 {:hits 1 :ttl 60}]}
+           (redis/get-rate-limits test-server pattern prefix)))
+    (redis/rate-limit test-server config client2)
+    (is (= #{[client1 {:hits 1 :ttl 60}]
+             [client2 {:hits 1 :ttl 60}]}
+           (redis/get-rate-limits test-server pattern prefix)))
+    (redis/rate-limit test-server config client2)
+    (is (= #{[client1 {:hits 1 :ttl 60}]
+             [client2 {:hits 2 :ttl 60}]}
+           (redis/get-rate-limits test-server pattern prefix)))
+    (redis/rate-limit test-server config client1)
+    (is (= #{[client1 {:hits 2 :ttl 60}]
+             [client2 {:hits 2 :ttl 60}]}
+           (redis/get-rate-limits test-server pattern prefix)))))

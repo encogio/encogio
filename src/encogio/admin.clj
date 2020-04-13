@@ -49,6 +49,21 @@
        [:th hits]
        [:th (time/seconds->duration ttl)]])]])
 
+(rum/defc login-attempts-table
+  [clients]
+  [:table.table.is-fullwidth.is-hoverable.is-bordered.is-striped
+   [:thead
+    [:tr.is-selected.is-info
+     [:th "IP address"]
+     [:th "Attempts"]
+     [:th "TTL"]]]
+   [:tbody
+    (for [[ip {:keys [hits ttl]}] (sort-by first clients)]
+      [:tr
+       [:th ip]
+       [:th hits]
+       [:th (time/seconds->duration ttl)]])]])
+
 (rum/defc panel
   [{:keys [urls clients healthy? rate-limit site]}]
   [:section.section
@@ -76,15 +91,14 @@
      [:div
       [:p.heading "Rate limit"]
       [:p.title
-       (str (:limit rate-limit) " / " (time/seconds->unit (:limit-duration rate-limit)))
-       ]]]
+       (str (:limit rate-limit) " / " (time/seconds->unit (:limit-duration rate-limit)))]]]
     [:.level-item.has-text-centered
      [:div
       [:p.heading "Clients"]
       [:p.title clients]]]]])
 
 (rum/defc admin-panel-html
-  [stats config clients]
+  [stats config api-clients login-clients]
   [:html
    [:head
     [:title "Encog.io admin panel"]
@@ -94,8 +108,12 @@
     (panel (merge stats config))
     [:section.section
      [:.columns
-      [:.column.is-half.is-offset-one-quarter
-       (clients-table clients)]]]]])
+      [:.column.is-half.has-text-centered
+       [:h2.title "API clients"
+        (clients-table api-clients)]]
+      [:.column.is-half.has-text-centered
+       [:h2.title "Login attempts"
+        (login-attempts-table login-clients)]]]]]])
 
 (rum/defc password-form
   [mode message]
@@ -115,6 +133,16 @@
       :id "password"
       :name "password"
       :required true}]]
+   (when message
+     [(case mode
+        :danger
+        :p.help.is-danger
+
+        :warning
+        :p.help.is-warning
+
+        :p.help)
+      message])
    [:field
     [:input.button.button.is-info.is-centered 
      {:type "submit"}]]])
@@ -143,21 +171,73 @@
 
 (defn admin-panel-handler
   [conn]
-  (let [clients (redis/get-clients conn)
+  (let [api-clients (redis/get-rate-limits conn)
+        login-attempts (redis/get-rate-limits conn
+                                              "encogio.admin.login-attempts:*"
+                                              "encogio.admin.login-attempts:")
         stats (redis/stats conn)
         cfg {:site config/site
              :rate-limit config/rate-limit}]
     {:status 200
-     :body (rum/render-static-markup (admin-panel-html stats cfg clients))
+     :body (rum/render-static-markup (admin-panel-html stats cfg api-clients login-attempts))
      :headers {"Content-Type" "text/html"}}))
 
 (defn admin-login-handler
   ([req]
    (admin-login-handler req :info nil))
   ([req mode message]
-   {:status 200
+   {:status 401
     :body (rum/render-static-markup (admin-login-form mode message))
     :headers {"Content-Type" "text/html"}}))
+
+(def login-attempts-settings {:limit 3
+                              :limit-duration 3600
+                              :prefix "encogio.admin.login-attempts:"})
+
+(rum/defc rate-limit
+  [retry-after]
+  [:html
+   [:head
+    [:link {:rel "stylesheet" :href "/css/font-awesome.css"}]
+    [:link {:rel "stylesheet" :href "/css/main.css"}]]
+   [:body
+    [:section.hero.is-danger.is-fullheight.has-text-centered
+     [:.hero-body
+      [:.container.has-text-centered
+       [:h1.title (str "Retry after " (time/seconds->duration retry-after))]]]]]])
+
+(defn rate-limit-handler
+  [retry-after]
+  {:status 429
+   :body (rum/render-static-markup (rate-limit retry-after))
+   :headers {"Retry-After" (str retry-after)
+             "Content-Type" "text/html"}})
+
+(defn login-attempts-middleware
+  [conn]
+  (mid/map->Middleware
+   {:name ::login-attempts
+    :description "Middleware that limits login attempts by IP"
+    :wrap (fn [handler]
+            (fn [request]
+              (if (= :post
+                     (:request-method request))
+                ;; login attempt
+                (if-let [ip (http/request->ip request)]
+                  (let [limited? (redis/limited? conn login-attempts-settings ip)]
+                    (if limited?
+                      (rate-limit-handler (redis/ttl conn login-attempts-settings ip))
+                      (let [response (handler request)]
+                        (if (= 200 (:status response))
+                          response ;; todo: successful login, reset limit?
+                          (let [[cmd res] (redis/rate-limit conn login-attempts-settings ip)]
+                            (if (redis/limited? conn login-attempts-settings ip)
+                              (rate-limit-handler (redis/ttl conn login-attempts-settings ip))
+                              (admin-login-handler {} :danger (str res " attempts remaining"))))))))
+                  ;; no ip available (dev)
+                  (handler request))
+                ;; not login attempt
+                (handler request))))}))
 
 (defn try-login
   [conn req]
@@ -166,27 +246,6 @@
       (admin-panel-handler conn)
       (admin-login-handler req :warning "Wrong password"))
     (admin-login-handler req :danger "Password required")))
-
-
-(def login-attempts-settings {:limit 3
-                              :limit-duration 3600
-                              :prefix "encogio.admin.login-attempts:"})
-
-#_(defn rate-limit-middleware
-  [conn]
-  (mid/map->Middleware
-   {:name ::rate-limit
-    :description "Middleware that rate limits by IP"
-    :wrap (fn [handler]
-            (fn [request]
-              ;; todo: rate limit only on POST, use login handlers instead of default
-              (if-let [ip (http/request->ip request)]
-                (let [[limit ttl] (redis/rate-limit conn settings ip)]
-                  (if (= limit :limit)
-                    {:status 429
-                     :headers {"Retry-After" (str ttl)}}
-                    (handler request)))
-                (handler request))))}))
 
 (defn route
   [conn]
@@ -199,5 +258,6 @@
     :post
     (fn [req]
       (try-login conn req))
-    :middleware [params/parameters-middleware]}]])
+     :middleware [(login-attempts-middleware conn)
+                  params/parameters-middleware]}]])
     
