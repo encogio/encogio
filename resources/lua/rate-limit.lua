@@ -5,13 +5,13 @@ local key = KEYS[1];
 local limit = tonumber(KEYS[2]);
 local duration = tonumber(KEYS[3]);
 
-local current = tonumber(redis.call('get', key));
+local current = tonumber(redis.call("GET", key));
 if current ~= nil and current >= limit then
-   return {'ERROR', tonumber(redis.call('ttl', key))};
+   return {"ERROR", tonumber(redis.call("TTL", key))};
 else
-   local counter = redis.call('incr', key)
+   local counter = redis.call("INCR", key)
    if counter == 1 then
-      redis.call('expire', key, duration);
+      redis.call("EXPIRE", key, duration);
    end;
    return {"OK", limit - counter};
 end;
