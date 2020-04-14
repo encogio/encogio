@@ -4,6 +4,7 @@
 
 (def ^String alphabet
   "abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ1234567890_-")
+
 (def base (count alphabet))
 
 (def alphabet-regex
@@ -21,8 +22,9 @@
     (cond
       (zero? input) (subs alphabet 0 1)
       (zero? n) res
-      :else (recur (bigint (/ n base))
-                   (str (nth alphabet (mod n base)) res)))))
+      :else
+      (recur (quot n base)
+             (str (nth alphabet (rem n base)) res)))))
 
 (defn base-decode
   [^String input]
