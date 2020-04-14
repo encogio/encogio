@@ -23,7 +23,7 @@
 
 (def counter-key "encogio.counter")
 (def url-prefix "encogio.url:")
-(def rate-limit-prefix "encogio.ratelimit:")
+(def rate-limit-prefix "encogio.rate-limit:")
 
 (defn make-url-key
   ([id]
@@ -82,13 +82,19 @@
       [:ok response]
       [:limit response])))
 
+(defn str->int
+  [s]
+  (when s
+    (Integer/valueOf s)))
+
 (defn limited?
   [conn {:keys [limit
                 prefix]
          :or {prefix rate-limit-prefix}} k]
-  (let [key (make-rate-limit-key prefix k)
-        current (wcar conn (car/llen key))]
-    (= current limit)))
+  (let [key (make-rate-limit-key prefix k)]
+    (when-let [current (str->int
+                        (wcar conn (car/get key))) ]
+      (= current limit))))
 
 (defn ttl
   [conn {:keys [prefix]
@@ -129,7 +135,7 @@
    (fn [acc in]
      (+ acc (count in)))
    0
-   "encogio.url:default:*"
+   (str url-prefix "*")
    conn))
 
 (defn count-clients
@@ -138,28 +144,29 @@
    (fn [acc in]
      (+ acc (count in)))
    0
-   "encogio.ratelimit:*"
+   (str rate-limit-prefix "*")
    conn))
 
 (defn remove-prefix
   [s prf]
-  (subs s (count prf)))
+  (subs s (min (count prf) (count s))))
 
 (defn get-rate-limits
   ([conn]
-   (get-rate-limits conn "encogio.ratelimit:*" rate-limit-prefix))
+   (get-rate-limits conn (str rate-limit-prefix "*") rate-limit-prefix))
   ([conn pattern prefix]
    (scan-match
     (fn [acc client-keys]
       (if (= 1 (count client-keys))
         (let [k (first client-keys)
-              [hits ttl] (wcar conn
-                           (car/llen k)
-                           (car/ttl k))
+              hits (str->int (wcar conn
+                               (car/get k)))
+              ttl (wcar conn
+                    (car/ttl k))
               client (remove-prefix k prefix)]
           (conj acc [client {:hits hits :ttl ttl}]))
-        (let [hits (wcar conn
-                     (mapv car/llen client-keys))
+        (let [hits (map str->int (wcar conn
+                                  (mapv car/get client-keys)))
               ttl (wcar conn
                     (mapv car/ttl client-keys))
               clients (map #(remove-prefix % prefix) client-keys)

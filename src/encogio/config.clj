@@ -1,5 +1,6 @@
 (ns encogio.config
-  (:require [environ.core :refer [env]]))
+  (:require [environ.core :refer [env]]
+            [encogio.time :as time]))
 
 (def secret-key
   (env :secret-key "4eUE0og3wbxcTfWJYdKhpPY41mAakZ3oC63ngT4u"))
@@ -10,7 +11,7 @@
 
 (def rate-limit
   {:limit 100
-   :limit-duration (* 24 3600)})
+   :limit-duration time/day})
 
 (def redis-conn
   {:pool {}

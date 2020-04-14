@@ -138,7 +138,7 @@
             :middleware [muuntaja/format-negotiate-middleware
                          muuntaja/format-response-middleware
                          muuntaja/format-request-middleware
-                         (rate-limit-middleware conn config/rate-limit)
+
                          swag/swagger-feature]}
     ;; docs
     ["/swagger.json"
@@ -151,7 +151,7 @@
     ["/shorten" {:swagger {:tags ["urls"]
                            :name "Shorten"
                            :description "Shorten a URL, optionally giving it an alias."}
-                 :post {:middleware auth/auth-middleware
+                 :post {:middleware (conj auth/auth-middleware (rate-limit-middleware conn config/rate-limit))
                         :coercion (schema/create
                                    {;; set of keys to include in error messages
                                     :error-keys #{#_:type :coercion :in :schema :value :errors :humanized #_:transformed}

@@ -163,12 +163,18 @@
                   [:.column
                    (password-form tr mode message)]]]]]]))
 
+
+(def login-attempts-pattern
+  "encogio.login-attempts.admin-panel:*")
+(def login-attempts-prefix
+  "encogio.login-attempts.admin-panel:")
+
 (defn admin-panel-handler
   [tr conn]
   (let [api-clients (redis/get-rate-limits conn)
         login-attempts (redis/get-rate-limits conn
-                                              "encogio.admin.login-attempts:*"
-                                              "encogio.admin.login-attempts:")
+                                              login-attempts-pattern
+                                              login-attempts-prefix)
         stats (redis/stats conn)
         cfg {:site config/site
              :rate-limit config/rate-limit}]
@@ -185,8 +191,8 @@
     :headers {"Content-Type" "text/html"}}))
 
 (def login-attempts-settings {:limit 3
-                              :limit-duration 3600
-                              :prefix "encogio.admin.login-attempts:"})
+                              :limit-duration time/day
+                              :prefix login-attempts-prefix})
 
 (rum/defc rate-limit
   [retry-after tr]
