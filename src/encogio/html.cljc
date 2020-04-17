@@ -38,7 +38,7 @@
    body])
 
 (rum/defc home
-  [tr]
+  [site tr]
   (page {:title (tr [:home/title])
          :description (tr [:home/description])}
         [:body
@@ -50,7 +50,8 @@
             [:h2.subtitle (tr [:home/subtitle])]]]]
          ; form
          [:section#shorten-form.section
-          (shorten-form (atom (empty-state tr)) tr)]
+          (shorten-form (atom (empty-state {:tr tr
+                                            :site site})) tr)]
          [:hr]
          ; message
          [:section.section
@@ -72,5 +73,5 @@
 
 #?(:clj
    (defn render-home
-     [tr]
-     (rum/render-static-markup (home tr))))
+     [site tr]
+     (rum/render-static-markup (home site tr))))

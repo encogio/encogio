@@ -4,7 +4,7 @@
    [clojure.spec.alpha :as s]
    [goog.net.XhrIo :as xhr])
   (:require-macros
-   [encogio.client.token :refer [deftoken]]))
+   [encogio.client.macros :refer [deftoken]]))
 
 ;; api
 

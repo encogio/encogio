@@ -6,8 +6,8 @@
   (env :secret-key "4eUE0og3wbxcTfWJYdKhpPY41mAakZ3oC63ngT4u"))
 
 (def site
-  {:scheme "http"
-   :host (env :site-host "encog.io")})
+  {:scheme (env :site-scheme "http")
+   :host (env :site-host "localhost")})
 
 (def rate-limit
   {:limit 100

@@ -1,28 +1,38 @@
 (ns encogio.client.ui
   (:require
    [clojure.spec.alpha :as s]
+   [encogio.url :as url]
    #?@(:cljs [[cljsjs.clipboard]
               [encogio.client.io :as io]
               [promesa.core :as p]
               [clojure.string :refer [blank? trim]]])
    [rum.core :as rum]))
 
+;; state
+
 (defn empty-state
-  [tr]
+  [{:keys [tr
+           site]}]
   {:url ""
    :alias ""
+   :site site
    :input-state :normal
    :notification {:kind :link
                   :message (tr [:home/greeting])}})
 
 (s/def ::state (s/keys ::req-un [::url
                                  ::alias
-                                 ::input-state]
+                                 ::input-state
+                                 ::site]
                        ::opt-un [::error
                                  ::notification
                                  ::short-url]))
 
 (s/def ::input-state #{:normal :waiting :copy :error})
+
+(s/def ::scheme #{"http" "https"})
+(s/def ::host string?)
+(s/def ::site (s/keys ::req-un [::scheme ::host]))
 
 (s/def ::alias string?)
 (s/def ::url string?)
@@ -47,6 +57,90 @@
   (let [notification {:kind kind
                       :message message}]
     (swap! state assoc :notification notification)))
+
+(defn url-copied!
+  [state tr]
+  (swap! state assoc
+         :input-state :normal
+         :url ""
+         :short-url "")
+  (notify! state :info
+           (tr [:shorten/copied])))
+
+(defn shorten-success!
+  [state {:keys [url short-url]} tr]
+  (swap! state assoc
+         :url url
+         :short-url short-url
+         :alias ""
+         :input-state :copy)
+  (notify! state :success
+           (tr [:shorten/shortened] [short-url url])))
+
+(defn shorten-error!
+  [state err tr]
+  (swap! state assoc
+         :error err
+         :input-state :error)
+  (case err
+    :invalid-url
+    (notify! state :error
+             (tr [:shorten/invalid-url]))
+
+    :invalid-alias
+    (notify! state :error
+             (tr [:shorten/invalid-alias]))
+
+    :used-alias
+    (notify! state :error
+             (tr [:shorten/used-alias]))
+
+    :server-error
+    (notify! state :error
+             (tr [:shorten/server-error]))
+
+    :rate-limit
+    (notify! state :error
+             (tr [:shorten/rate-limit]))
+
+    :network-error
+    (notify! state :error
+             (tr [:shorten/network-error]))
+
+    :forbidden-domain
+    (notify! state :error
+             (tr [:shorten/forbidden-domain]))
+    nil))
+
+#?(:cljs
+   (defn shorten-url!
+     [url alias state tr]
+     (-> (if-not (blank? alias)
+           (io/alias! url (trim alias))
+           (io/shorten! url))
+         (p/then
+          (fn [shortened]
+            (shorten-success! state shortened tr)))
+         (p/catch (fn [err]
+                    (shorten-error! state err tr))))))
+
+(defn url-input-change!
+  [state url]
+  (swap! state assoc
+         :input-state :normal
+         :url url))
+
+(defn wait!
+  [state]
+  (swap! state assoc :input-state :waiting))
+
+(defn alias-input-change!
+  [state alias]
+  (swap! state assoc
+         :input-state :normal
+         :alias alias))
+
+;; components
 
 (rum/defc notifications < rum/static
   [notification]
@@ -87,67 +181,11 @@
       :ref button
       :on-click (fn [ev]
                   (.preventDefault ev)
-                  (notify! state :info
-                           (tr [:shorten/copied]))
-                  (swap! state assoc
-                         :input-state :normal
-                         :url ""
-                         :short-url ""))}
+                  (url-copied! state tr))}
      [:div
       [:span.icon.is-small
        [:i.fas.fa-copy]]
       [:span (tr [:shorten/copy])]]]))
-
-#?(:cljs
-   (defn shorten-url!
-     [url alias state tr]
-     (-> (if-not (blank? alias)
-           (io/alias! url (trim alias))
-           (io/shorten! url))
-         (p/then
-          (fn [shortened]
-            (swap! state assoc
-                   :url (:url shortened)
-                   :short-url (:short-url shortened)
-                   :alias ""
-                   :input-state :copy)
-            (notify! state :success
-                     (tr [:shorten/shortened] [(:short-url shortened)]))))
-         (p/catch (fn [err]
-                    (case err
-                      :invalid-url
-                      (notify! state :error
-                               (tr [:shorten/invalid-url]))
-                      
-                      :invalid-alias
-                      (notify! state :error
-                               (tr [:shorten/invalid-alias]))
-
-                      :used-alias
-                      (notify! state :error
-                               (tr [:shorten/used-alias]))
-
-                      :server-error
-                      (notify! state :error
-                               (tr [:shorten/server-error]))
-
-                      :rate-limit
-                      (notify! state :error
-                               (tr [:shorten/rate-limit]))
-
-                      :network-error
-                      (notify! state :error
-                               (tr [:shorten/network-error]))
-
-                      :forbidden-domain
-                      (notify! state :error
-                               (tr [:shorten/forbidden-domain]))
-
-                      nil)
-                    (swap! state assoc
-                           :error err
-                           :input-state :error))))))
-
 
 (rum/defc url-input < rum/reactive
   [state tr]
@@ -174,20 +212,19 @@
                  :copy short-url
                  url)
         :on-change (fn [ev]
-                     (swap! state assoc
-                            :input-state :normal
-                            :url (.-value (.-target ev))))}]]
+                     (url-input-change! state
+                                        (.-value (.-target ev))))}]]
      [:.control
       (cond
         (= input-state :copy)
         (url-copy-button short-url state tr)
-        
+
         :else
         [:button.button.is-primary
          {:disabled (when disabled? "disabled")
           #?@(:cljs [:on-click (fn [ev]
                                  (.preventDefault ev)
-                                 (swap! state assoc :input-state :waiting)
+                                 (wait! state)
                                  (shorten-url! url alias state tr))])}
          [:div
           [:span.icon.is-small
@@ -197,13 +234,14 @@
 (rum/defc alias-input < rum/reactive
   [state tr]
   (let [{:keys [error
+                site
                 alias
                 input-state]} (rum/react state)
         disabled? (= input-state :waiting)]
     [:.field.has-addons
      [:.control
       [:a {:class "button is-static"}
-       "http://encog.io/"]]
+       (url/urlize site "")]]
      [:.control
       [:input.input
        {:type "text"
@@ -216,9 +254,7 @@
         :disabled (when disabled? "disabled")
         :value alias
         :on-change (fn [ev]
-                     (swap! state assoc
-                            :input-state :normal
-                            :alias (.-value (.-target ev))))}]]]))
+                     (alias-input-change! state (.-value (.-target ev))))}]]]))
 
 (rum/defc shorten-form < rum/reactive
   [state tr]

@@ -12,7 +12,7 @@
 (defn home
   [req]
   {:status 200
-   :body (html/render-home (i18n/request->tr req))
+   :body (html/render-home config/site (i18n/request->tr req))
    :headers {"Content-Type" "text/html"}})
 
 (def router

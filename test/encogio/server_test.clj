@@ -2,6 +2,7 @@
   (:require
    [encogio.redis-test :refer [flush!]]
    [encogio.redis :as redis]
+   [encogio.url :as url]
    [taoensso.carmine :as car :refer [wcar]]
    [muuntaja.core :as m]
    [encogio.auth :as auth]
@@ -65,12 +66,12 @@
 
 (deftest shorten-rejects-urls-without-scheme
   (let [url "google.com"
-        resp (shorten! url)]        
+        resp (shorten! url)]
     (is (= (:status resp) 400))))
 
 (deftest shorten-rejects-urls-from-site-domain
-  (let [url (str "http://" (:host config/site) "/asdfsad")
-        resp (shorten! url)]        
+  (let [url (url/urlize config/site "asdf")
+        resp (shorten! url)]
     (is (= (:status resp) 403))))
 
 ;; shorten: auth
@@ -147,7 +148,7 @@
   (let [id "not-matching"
         _ (flush! redis-conn)
         req {:request-method :get
-             :uri (str "/" id)}        
+             :uri (str "/" id)}
         resp (app req)]
     (is (= (:status resp) 404))))
 
