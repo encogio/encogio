@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /api/shorten/
+Disallow: /admin/*
+Allow: /api/docs/*
