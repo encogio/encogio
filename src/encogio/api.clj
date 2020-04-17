@@ -38,10 +38,12 @@
   (let [result (redis/alias-url! conn url alias)]
     (if (an/conflict? result)
       {:status 409}
-      {:status 200
-       :body {:url url
-              :alias alias
-              :short-url (url/urlize config/site (:id result))}})))
+      (do
+        (log/add-link! conn result)
+        {:status 200
+         :body {:url url
+                :alias alias
+                :short-url (url/urlize config/site (:id result))}}))))
 
 (defn shorten
   [conn req]

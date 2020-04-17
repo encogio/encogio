@@ -40,7 +40,6 @@
 
 (rum/defc links-table
   [tr site links]
-  (println :links links)
   [:table.table.is-fullwidth.is-hoverable.is-bordered.is-striped
    [:thead
     [:tr.is-selected.is-info
@@ -87,11 +86,12 @@
        [:th (time/seconds->duration ttl tr)]])]])
 
 (rum/defc panel
-  [tr {:keys [urls
-              clients
-              healthy?
-              rate-limit
-              site]}]
+  [tr
+   {:keys [urls
+           clients
+           healthy?]}
+   {:keys [site rate-limit]}
+   clients]
   [:section.section
    [:nav.level
     [:.level-item.has-text-centered
@@ -121,7 +121,7 @@
     [:.level-item.has-text-centered
      [:div
       [:p.heading (tr [:admin/clients])]
-      [:p.title clients]]]]])
+      [:p.title (count clients)]]]]])
 
 (rum/defc admin-panel-html
   [tr {:keys [stats
@@ -131,7 +131,7 @@
               links]}]
   (html/page {:title (tr [:admin/title])}
              [:body
-              (panel tr (merge stats config))
+              (panel tr stats config api-clients)
               [:section.section
                [:.columns
                 [:.column.has-text-centered
