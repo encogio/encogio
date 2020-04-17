@@ -8,11 +8,11 @@
    [org.clojure/clojurescript "1.10.439"
     :exclusions [com.fasterxml.jackson.core/jackson-core]] ;; needed since `reitit-middleware` transitively depends on jackson-core and jackson-databind and their versions MUST match
    ;; html rendering
-   [rum "0.11.4"]
+   [rum "0.11.5-SNAPSHOT"]
    ;; promises for async programming
    [funcool/promesa "5.1.0"]
    ;; clipboard management
-   [cljsjs/clipboard "2.0.4-0"]
+   [cljsjs/clipboard "2.0.1-2"] ;; NOTE: 2.0.4 doesn't include `.destroy` in extern
    ;; http server abstraction
    [ring/ring-core "1.8.0"]
    ;; http server runtime

@@ -70,34 +70,33 @@
     nil))
 
 #?(:cljs
-   (def copy-mixin
-     {:after-render
-      (fn [state]
-        (let [[text] (:rum/args state)
-              button (rum/ref-node state "button")
-              clip (js/ClipboardJS. button  #js {:text (constantly text)})]
-          (assoc state :clip clip)))
-      :will-unmount
-      (fn [state]
-        (dissoc state :clip))}))
+   (defn clipboard
+     [el text]
+     (js/ClipboardJS. el #js {:text (constantly text)})))
 
-(rum/defc url-copy-button #?@(:cljs [< copy-mixin])
+(rum/defc url-copy-button
   [url state tr]
-  [:button
-   {:class "button is-light is-success"
-    :ref "button"
-    :on-click (fn [ev]
-                (.preventDefault ev)
-                (notify! state :info
-                         (tr [:shorten/copied]))
-                (swap! state assoc
-                       :input-state :normal
-                       :url ""
-                       :short-url ""))}
-   [:div
-    [:span.icon.is-small
-     [:i.fas.fa-copy]]
-    [:span (tr [:shorten/copy])]]])
+  (let [button (rum/use-ref nil)
+        #?@(:cljs [_ (rum/use-effect! (fn []
+                                        (let [bt (.-current button)
+                                              clip (clipboard bt url)]
+                                          (fn []
+                                            (.destroy clip)))))])]
+    [:button
+     {:class "button is-light is-success"
+      :ref button
+      :on-click (fn [ev]
+                  (.preventDefault ev)
+                  (notify! state :info
+                           (tr [:shorten/copied]))
+                  (swap! state assoc
+                         :input-state :normal
+                         :url ""
+                         :short-url ""))}
+     [:div
+      [:span.icon.is-small
+       [:i.fas.fa-copy]]
+      [:span (tr [:shorten/copy])]]]))
 
 #?(:cljs
    (defn shorten-url!
