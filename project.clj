@@ -26,6 +26,7 @@
    [metosin/reitit-malli "0.4.2"]
    ;; redis client
    [com.taoensso/carmine "2.20.0-RC1"]
+   [com.taoensso/encore "2.119.0"]
    ;; auth(z)
    [buddy/buddy-auth "2.2.0"]
    [buddy/buddy-hashers "1.4.0"]

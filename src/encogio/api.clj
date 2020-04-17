@@ -6,6 +6,7 @@
    [encogio.config :as config]
    [encogio.redis :as redis]
    [encogio.redis.rate-limit :as rl]
+   [encogio.redis.log :as log]
    [encogio.auth :as auth]
    [encogio.admin :as admin]
    [encogio.anomalies :as an]
@@ -25,10 +26,12 @@
   (let [result (redis/store-url! conn url)]
     (if (an/conflict? result)
       {:status 500}
-      {:status 200
-       :body {:url url
-              :alias (:id result)
-              :short-url (url/urlize config/site (:id result))}})))
+      (do
+        (log/add-link! conn result)
+        {:status 200
+         :body {:url url
+                :alias (:id result)
+                :short-url (url/urlize config/site (:id result))}}))))
 
 (defn alias-handler
   [conn url alias]

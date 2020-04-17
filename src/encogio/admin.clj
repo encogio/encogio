@@ -6,6 +6,7 @@
    [encogio.http :as http]
    [encogio.redis :as redis]
    [encogio.redis.rate-limit :as rl]
+   [encogio.redis.log :as log]
    [encogio.config :as config]
    [encogio.url :as url]
    [buddy.hashers :as hashers]
@@ -36,6 +37,24 @@
     (hashers/check pwd derived hasher-opts)))
 
 ;; ui
+
+(rum/defc links-table
+  [tr site links]
+  (println :links links)
+  [:table.table.is-fullwidth.is-hoverable.is-bordered.is-striped
+   [:thead
+    [:tr.is-selected.is-info
+     [:th (tr [:admin/link])]
+     [:th (tr [:admin/url])]]]
+   [:tbody
+    (for [{:keys [id url]} links]
+      [:tr
+       [:th
+        [:a {:href (url/urlize site id)}
+         (url/urlize site id)]]
+       [:th
+        [:a {:href url}
+          url]]])]])
 
 (rum/defc clients-table
   [tr clients]
@@ -105,10 +124,19 @@
       [:p.title clients]]]]])
 
 (rum/defc admin-panel-html
-  [tr stats config api-clients login-clients]
+  [tr {:keys [stats
+              config
+              api-clients
+              login-clients
+              links]}]
   (html/page {:title (tr [:admin/title])}
              [:body
               (panel tr (merge stats config))
+              [:section.section
+               [:.columns
+                [:.column.has-text-centered
+                 [:h2.title (tr [:admin/links])
+                  (links-table tr (:site config) links)]]]]
               [:section.section
                [:.columns
                 [:.column.is-half.has-text-centered
@@ -181,11 +209,17 @@
                                            login-attempts-pattern
                                            login-attempts-prefix)
         stats (redis/stats conn)
+        links (log/get-latest-links! conn)
         cfg {:site config/site
              :rate-limit config/rate-limit}]
     {:status 200
      :body (rum/render-static-markup
-            (admin-panel-html tr stats cfg api-clients login-attempts))
+            (admin-panel-html tr
+                              {:stats stats
+                               :config cfg
+                               :api-clients api-clients
+                               :login-attempts login-attempts
+                               :links links}))
      :headers {"Content-Type" "text/html"}}))
 
 (defn admin-login-handler

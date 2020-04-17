@@ -41,7 +41,10 @@
     :ttl "Tiempo restante"
     :requests "Peticiones"
     :password "Password"
-    :login "Admin login"}
+    :login "Admin login"
+    :links "Links"
+    :link "Link"
+    :url "URL"}
    :html
    {:title "Encog.io | Encoge enlaces"
 
@@ -135,7 +138,10 @@
     :ttl "TTL"
     :requests "Requests"
     :password "Password"
-    :login "Admin login"}
+    :login "Admin login"
+    :links "Links"
+    :link "Link"
+    :url "URL"}
    :html
    {:title "Encog.io | Shorten links"
 

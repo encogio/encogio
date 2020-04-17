@@ -1,6 +1,6 @@
 (ns encogio.server
   (:require
-   [encogio.config :as config]   
+   [encogio.config :as config]
    [encogio.ring :as ring]
    [encogio.redis :as redis]
    [ring.adapter.jetty :refer [run-jetty]])
