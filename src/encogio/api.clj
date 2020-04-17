@@ -5,6 +5,7 @@
    [encogio.url :as url]
    [encogio.config :as config]
    [encogio.redis :as redis]
+   [encogio.redis.rate-limit :as rl]
    [encogio.auth :as auth]
    [encogio.admin :as admin]
    [encogio.anomalies :as an]
@@ -90,7 +91,7 @@
     :wrap (fn [handler]
             (fn [request]
               (if-let [ip (http/request->ip request)]
-                (let [[limit ttl] (redis/rate-limit conn settings ip)]
+                (let [[limit ttl] (rl/rate-limit conn settings ip)]
                   (if (= limit :limit)
                     {:status 429
                      :headers {"Retry-After" (str ttl)}}

@@ -5,6 +5,7 @@
    [encogio.time :as time]
    [encogio.http :as http]
    [encogio.redis :as redis]
+   [encogio.redis.rate-limit :as rl]
    [encogio.config :as config]
    [encogio.url :as url]
    [buddy.hashers :as hashers]
@@ -67,7 +68,11 @@
        [:th (time/seconds->duration ttl tr)]])]])
 
 (rum/defc panel
-  [tr {:keys [urls clients healthy? rate-limit site]}]
+  [tr {:keys [urls
+              clients
+              healthy?
+              rate-limit
+              site]}]
   [:section.section
    [:nav.level
     [:.level-item.has-text-centered
@@ -142,7 +147,7 @@
         :p.help)
       message])
    [:field
-    [:input.button.button.is-info.is-centered 
+    [:input.button.button.is-info.is-centered
      {:type "submit"}]]])
 
 (rum/defc admin-login-form
@@ -171,15 +176,16 @@
 
 (defn admin-panel-handler
   [tr conn]
-  (let [api-clients (redis/get-rate-limits conn)
-        login-attempts (redis/get-rate-limits conn
-                                              login-attempts-pattern
-                                              login-attempts-prefix)
+  (let [api-clients (rl/get-rate-limits conn)
+        login-attempts (rl/get-rate-limits conn
+                                           login-attempts-pattern
+                                           login-attempts-prefix)
         stats (redis/stats conn)
         cfg {:site config/site
              :rate-limit config/rate-limit}]
     {:status 200
-     :body (rum/render-static-markup (admin-panel-html tr stats cfg api-clients login-attempts))
+     :body (rum/render-static-markup
+            (admin-panel-html tr stats cfg api-clients login-attempts))
      :headers {"Content-Type" "text/html"}}))
 
 (defn admin-login-handler
@@ -201,7 +207,9 @@
               [:section.hero.is-danger.is-fullheight.has-text-centered
                [:.hero-body
                 [:.container.has-text-centered
-                 [:h1.title (tr [:admin/retry-after] [(time/seconds->duration retry-after tr)])]]]]]))
+                 [:h1.title
+                  (tr [:admin/retry-after]
+                      [(time/seconds->duration retry-after tr)])]]]]]))
 
 (defn rate-limit-handler
   [retry-after tr]
@@ -221,16 +229,18 @@
                      (:request-method request))
                 ;; login attempt
                 (if-let [ip (http/request->ip request)]
-                  (let [limited? (redis/limited? conn login-attempts-settings ip)
+                  (let [limited? (rl/limited? conn login-attempts-settings ip)
                         tr (i18n/request->tr request)]
                     (if limited?
-                      (rate-limit-handler (redis/ttl conn login-attempts-settings ip) tr)
+                      (rate-limit-handler (rl/ttl conn login-attempts-settings ip) tr)
                       (let [response (handler request)]
                         (if (= 200 (:status response))
-                          response ;; todo: successful login, reset limit?
-                          (let [[cmd res] (redis/rate-limit conn login-attempts-settings ip)]
-                            (if (redis/limited? conn login-attempts-settings ip)
-                              (rate-limit-handler (redis/ttl conn login-attempts-settings ip) tr)
+                          response
+                          (let [[cmd res] (rl/rate-limit conn
+                                                         login-attempts-settings
+                                                         ip)]
+                            (if (rl/limited? conn login-attempts-settings ip)
+                              (rate-limit-handler (rl/ttl conn login-attempts-settings ip) tr)
                               (admin-login-handler tr :danger (tr [:admin/attempts] [res]))))))))
                   ;; no ip available (dev)
                   (handler request))
