@@ -20,10 +20,14 @@
     (string/join ", "
                  (filter #(not (string/blank? %))
                          (conj []
-                               (when (> wk 0) (str wk " week"))
-                               (when (> d 0) (str d " day"))
-                               (when (> hr 0) (str hr " hour"))
-                               (when (> min 0) (str min " min")))))))
+                               (when (> wk 0)
+                                 (str wk " " (tr [:time/week] [wk])))
+                               (when (> d 0)
+                                 (str d " " (tr [:time/day] [d])))
+                               (when (> hr 0)
+                                 (str hr " " (tr [:time/hour] [hr])))
+                               (when (> min 0)
+                                 (str min " " (tr [:time/min] [min]))))))))
 
 (defn seconds->unit
   [seconds tr]
@@ -38,8 +42,8 @@
     (string/join ", "
                  (filter #(not (string/blank? %))
                          (conj []
-                               (when (= wk 1) "week")
-                               (when (= d 1) "day")
-                               (when (= hr 1) "hour")
-                               (when (= min 1) "min")
-                               (when (= sec 1) "sec"))))))
+                               (when (= wk 1) (tr [:time/week] [1]))
+                               (when (= d 1) (tr [:time/day] [1]))
+                               (when (= hr 1) (tr [:time/hour] [1]))
+                               (when (= min 1) (tr [:time/min] [1]))
+                               (when (= sec 1) (tr [:time/sec] [1])))))))
