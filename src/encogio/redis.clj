@@ -15,7 +15,7 @@
 
 (defn- set-new-key!
   [conn k v]
-  (let [set? (wcar conn (car/eval* atomic-set-lua 2 k v))]
+  (let [set? (wcar conn (car/eval* atomic-set-lua 1 k v))]
     (if (= set? "OK")
       {:key k :value v}
       (an/conflict "Can't set duplicate keys"))))

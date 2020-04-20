@@ -22,7 +22,7 @@
   (let [key (make-rate-limit-key prefix k)
         [result response]
         (wcar conn
-          (car/eval* rate-limit-lua 3 key limit limit-duration))]
+          (car/eval* rate-limit-lua 1 key limit limit-duration))]
     (if (= result "OK")
       [:ok response]
       [:limit response])))
