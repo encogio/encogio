@@ -96,8 +96,3 @@
    0
    (str url-prefix "*")
    conn))
-
-(defn stats
-  [conn]
-  {:urls (count-urls conn)
-   :healthy? (healthy? conn)})

@@ -7,6 +7,7 @@
    [encogio.redis :as redis]
    [encogio.redis.rate-limit :as rl]
    [encogio.redis.log :as log]
+   [encogio.redis.stats :as st]
    [encogio.config :as config]
    [encogio.url :as url]
    [buddy.hashers :as hashers]
@@ -87,10 +88,10 @@
 
 (rum/defc panel
   [tr
-   {:keys [urls
-           clients
-           healthy?]}
-   {:keys [site rate-limit]}
+   urls
+   redis-info
+   {:keys [site
+           rate-limit]}
    clients]
   [:section.section
    [:nav.level
@@ -104,11 +105,7 @@
      [:div
       [:p.heading (tr [:admin/db])]
       [:p.title
-       (if healthy?
-         [:span.icon.has-text-success
-          [:i.fas.fa-check]]
-         [:span.icon.has-text-danger
-          [:i.fas.fa-ban]])]]]
+       (:used-memory-human redis-info)]]]
     [:.level-item.has-text-centered
      [:div
       [:p.heading (tr [:admin/urls])]
@@ -117,21 +114,28 @@
      [:div
       [:p.heading (tr [:admin/rate-limit])]
       [:p.title
-       (str (:limit rate-limit) " / " (time/seconds->unit (:limit-duration rate-limit) tr))]]]
+       (str (:limit rate-limit)
+            " / "
+            (time/seconds->unit (:limit-duration rate-limit) tr))]]]
     [:.level-item.has-text-centered
      [:div
       [:p.heading (tr [:admin/clients])]
       [:p.title (count clients)]]]]])
 
 (rum/defc admin-panel-html
-  [tr {:keys [stats
+  [tr {:keys [urls
+              redis-info
               config
               api-clients
               login-clients
               links]}]
   (html/page {:title (tr [:admin/title])}
              [:body
-              (panel tr stats config api-clients)
+              (panel tr
+                     urls
+                     redis-info
+                     config
+                     api-clients)
               [:section.section
                [:.columns
                 [:.column.has-text-centered
@@ -208,14 +212,15 @@
         login-attempts (rl/get-rate-limits conn
                                            login-attempts-pattern
                                            login-attempts-prefix)
-        stats (redis/stats conn)
         links (log/get-latest-links! conn)
+        redis-info (st/info conn)
         cfg {:site config/site
              :rate-limit config/rate-limit}]
     {:status 200
      :body (rum/render-static-markup
             (admin-panel-html tr
-                              {:stats stats
+                              {:urls (redis/count-urls conn)
+                               :redis-info redis-info
                                :config cfg
                                :api-clients api-clients
                                :login-attempts login-attempts
