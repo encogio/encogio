@@ -61,26 +61,25 @@
 (deftest redis-query-get-rate-limits-for-custom-prefix
   (let [_ (flush!)
         prefix "admin.login-attempts:"
-        pattern "admin.login-attempts:*"
         config {:limit 10
                 :limit-duration 60
                 :prefix prefix}
         client1 "a-client"
         client2 "another-client"
-        clients (rl/get-rate-limits test-server pattern prefix)]
+        clients (rl/get-rate-limits test-server prefix)]
     (is (empty? clients))
     (rl/rate-limit test-server config client1)
     (is (= #{[client1 {:hits 1 :ttl 60}]}
-           (rl/get-rate-limits test-server pattern prefix)))
+           (rl/get-rate-limits test-server prefix)))
     (rl/rate-limit test-server config client2)
     (is (= #{[client1 {:hits 1 :ttl 60}]
              [client2 {:hits 1 :ttl 60}]}
-           (rl/get-rate-limits test-server pattern prefix)))
+           (rl/get-rate-limits test-server prefix)))
     (rl/rate-limit test-server config client2)
     (is (= #{[client1 {:hits 1 :ttl 60}]
              [client2 {:hits 2 :ttl 60}]}
-           (rl/get-rate-limits test-server pattern prefix)))
+           (rl/get-rate-limits test-server prefix)))
     (rl/rate-limit test-server config client1)
     (is (= #{[client1 {:hits 2 :ttl 60}]
              [client2 {:hits 2 :ttl 60}]}
-           (rl/get-rate-limits test-server pattern prefix)))))
+           (rl/get-rate-limits test-server prefix)))))

@@ -62,8 +62,8 @@
 
 (defn get-rate-limits
   ([conn]
-   (get-rate-limits conn (str rate-limit-prefix "*") rate-limit-prefix))
-  ([conn pattern prefix]
+   (get-rate-limits conn rate-limit-prefix))
+  ([conn prefix]
    (redis/scan-match
     (fn [acc client-keys]
       (if (= 1 (count client-keys))
@@ -74,13 +74,14 @@
                     (car/ttl k))
               client (remove-prefix k prefix)]
           (conj acc [client {:hits hits :ttl ttl}]))
-        (let [hits (map str->int (wcar conn
-                                  (mapv car/get client-keys)))
+        (let [hits (mapv str->int
+                         (wcar conn
+                           (apply car/mget client-keys)))
               ttl (wcar conn
                     (mapv car/ttl client-keys))
               clients (map #(remove-prefix % prefix) client-keys)
               stats (map (fn [h t] {:hits h :ttl t}) hits ttl)]
           (into acc (zipmap clients stats)))))
     #{}
-    pattern
+    (str prefix "*")
     conn)))

@@ -201,17 +201,13 @@
                    (password-form tr mode message)]]]]]]))
 
 
-(def login-attempts-pattern
-  "encogio.login-attempts.admin-panel:*")
 (def login-attempts-prefix
   "encogio.login-attempts.admin-panel:")
 
 (defn admin-panel-handler
   [tr conn]
   (let [api-clients (rl/get-rate-limits conn)
-        login-attempts (rl/get-rate-limits conn
-                                           login-attempts-pattern
-                                           login-attempts-prefix)
+        login-attempts (rl/get-rate-limits conn login-attempts-prefix)
         links (log/get-latest-links! conn)
         redis-info (st/info conn)
         cfg {:site config/site

@@ -1,6 +1,12 @@
--- Receives a key (KEYS[1]), a rate limit (ARGV[1]) and rate limit duration in seconds (ARGV[2]) and returns either:
---  - {"ERROR", <ttl>} :: the rate limit has been expired, will be reset after ttl.
---  - {"OK", <remaining-attempts>} :: within limits, returns remaining attempts.
+-- Receives a key (KEYS[1]), a rate limit (ARGV[1]) and rate limit duration in seconds (ARGV[2]) and tries to increase the rate limit count for key given the configuration.
+--
+-- Returns either:
+--  {"ERROR", <ttl>}
+--    The rate limit has been expired, will be reset after `ttl` seconds.
+--
+--  {"OK", <remaining-attempts>}
+--     Within rate limit threshold, returns remaining attempts.
+--
 local key = KEYS[1];
 local limit = tonumber(ARGV[1]);
 local duration = tonumber(ARGV[2]);
