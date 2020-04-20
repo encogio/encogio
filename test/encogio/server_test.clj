@@ -1,17 +1,18 @@
 (ns encogio.server-test
   (:require
-   [encogio.redis-test :refer [flush!]]
+   [encogio.redis-test :refer [flush! test-server]]
    [encogio.redis :as redis]
    [encogio.url :as url]
    [taoensso.carmine :as car :refer [wcar]]
    [muuntaja.core :as m]
    [encogio.auth :as auth]
    [encogio.http :as http]
-   [encogio.ring :refer [app]]
+   [encogio.ring :as ring]
    [encogio.api :as api]
    [encogio.config :as config]
-   [encogio.config :refer [redis-conn]]
    [clojure.test :refer [deftest is]]))
+
+(def app (ring/conn->app test-server))
 
 (defn post-shorten!
   ([body]
@@ -111,7 +112,7 @@
 (deftest shorten-accepts-aliases
   (let [url "http://google.com"
         alias "dont-be-evil"
-        _ (flush! redis-conn)
+        _ (flush!)
         resp (shorten! url alias)]
     (is (= (:status resp) 200))
     (is (= (get-in resp [:body :url]) url))
@@ -120,7 +121,7 @@
 (deftest shorten-rejects-duplicate-aliases
   (let [url "http://facebook.com"
         alias "privacy"
-        _ (flush! redis-conn)
+        _ (flush!)
         resp (shorten! url alias)
         err (shorten! url alias)]
     (is (= (:status resp) 200))
@@ -129,7 +130,7 @@
 (deftest shorten-rejects-invalid-aliases
   (let [url "http://facebook.com"
         alias "not a valid alias"
-        _ (flush! redis-conn)
+        _ (flush!)
         resp (shorten! url alias)]
     (is (= (:status resp) 400))))
 
@@ -137,7 +138,7 @@
 
 (deftest redirect-handler-redirects-to-url-if-match
   (let [url "http://google.com/asdfsad"
-        {:keys [id]} (redis/store-url! redis-conn "http://google.com/asdfsad")
+        {:keys [id]} (redis/store-url! test-server "http://google.com/asdfsad")
         req {:request-method :get
              :uri (str "/" id)}
         resp (app req)]
@@ -146,7 +147,7 @@
 
 (deftest redirect-handler-return-not-found-if-no-match
   (let [id "not-matching"
-        _ (flush! redis-conn)
+        _ (flush!)
         req {:request-method :get
              :uri (str "/" id)}
         resp (app req)]
@@ -163,8 +164,8 @@
 
 (deftest rate-limit-limits-by-remote-address
   (let [addr "123.123.1.1"
-        _ (flush! redis-conn)
-        {:keys [wrap]} (api/rate-limit-middleware redis-conn
+        _ (flush!)
+        {:keys [wrap]} (api/rate-limit-middleware test-server
                                                   {:limit 2
                                                    :limit-duration 3600})
         handler (wrap (constantly {:status 200}))
@@ -175,8 +176,8 @@
 
 (deftest rate-limit-limits-by-proxies-remote-address
   (let [addr "123.123.1.1"
-        _ (flush! redis-conn)
-        {:keys [wrap]} (api/rate-limit-middleware redis-conn
+        _ (flush!)
+        {:keys [wrap]} (api/rate-limit-middleware test-server
                                                   {:limit 2
                                                    :limit-duration 3600})
         handler (wrap (constantly {:status 200}))

@@ -8,13 +8,16 @@
    [taoensso.carmine :as car :refer [wcar]])
   (:import [java.net URL]))
 
-(def test-server {:pool {} :spec {:url "127.0.0.0.1"}})
+(def test-server {:pool {}
+                  :spec {:host "127.0.0.1"
+                         :port 6379
+                         :db 1}})
 
 (defn flush!
   ([]
    (flush! test-server))
   ([conn]
-   (wcar conn (car/flushall))))
+   (wcar conn (car/flushdb))))
 
 (def gen-url
   (gen/let [protocol (gen/elements ["http" "https"])

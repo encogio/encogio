@@ -15,7 +15,8 @@
    :body (html/render-home config/site (i18n/request->tr req))
    :headers {"Content-Type" "text/html"}})
 
-(def router
+(defn conn->router
+  [conn]
   (ring/router
    [["" {:get home
          :no-doc true
@@ -23,11 +24,17 @@
     ["/" {:get home
           :no-doc true
           :middleware [i18n/middleware]}]
-    (admin/route config/redis-conn)
-    (api/routes config/redis-conn)]))
+    (admin/route conn)
+    (api/routes conn)]))
 
-(def app
-  (ring/ring-handler router
+(defn conn->app
+  [conn]
+  (ring/ring-handler (conn->router conn)
                      (ring/routes
                       (ring/create-resource-handler {:root "public" :path "/"})
                       (ring/create-default-handler))))
+
+(def app
+  (conn->app encogio.config/redis-conn))
+
+

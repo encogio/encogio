@@ -1,11 +1,9 @@
 (ns encogio.rate-limit-test
   (:require
    [clojure.test :refer [deftest is]]
-   [encogio.redis-test :refer [flush!]]
+   [encogio.redis-test :refer [flush! test-server]]
    [encogio.redis.rate-limit :as rl]
    [taoensso.carmine :as car :refer [wcar]]))
-
-(def test-server {:pool {} :spec {:url "127.0.0.0.1"}})
 
 (deftest rate-limit-limits-after-all-attempts-consumed
   (let [key "rate-limited"

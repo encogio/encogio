@@ -18,7 +18,7 @@
    :spec
    (if-let [uri (env :redis-url)]
      {:uri uri}
-     {:url "127.0.0.1"})})
+     {})})
 
 
 (def port (Integer/valueOf (env :port "8000")))
