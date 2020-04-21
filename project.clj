@@ -8,7 +8,7 @@
    [org.clojure/clojurescript "1.10.439"
     :exclusions [com.fasterxml.jackson.core/jackson-core]] ;; needed since `reitit-middleware` transitively depends on jackson-core and jackson-databind and their versions MUST match
    ;; html rendering
-   [rum "0.11.5-SNAPSHOT"]
+   [rum "0.12.0-SNAPSHOT"]
    ;; promises for async programming
    [funcool/promesa "5.1.0"]
    ;; clipboard management
