@@ -7,7 +7,7 @@
   (:gen-class))
 
 (defn -main
-  [& args]
+  [& _]
   (when-not (redis/healthy? config/redis-conn)
     (throw (Exception.
             (str "Unable to connect to redis with settings: " (pr-str config/redis-conn)))))

@@ -13,7 +13,6 @@
    [buddy.hashers :as hashers]
    [reitit.ring.middleware.parameters :as params]
    [rum.core :as rum]
-   [clojure.string :as string :refer [trim]]
    [reitit.middleware :as mid]
    [taoensso.carmine :as car :refer [wcar]]))
 

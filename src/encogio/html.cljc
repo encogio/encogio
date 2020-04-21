@@ -1,7 +1,6 @@
 (ns encogio.html
   (:require
    [encogio.client.ui :refer [shorten-form empty-state]]
-   [encogio.i18n :as i18n]
    [rum.core :as rum]))
 
 (rum/defc page

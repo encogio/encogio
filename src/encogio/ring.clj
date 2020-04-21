@@ -1,10 +1,8 @@
 (ns encogio.ring
   (:require
    [encogio.api :as api]
-   [encogio.http :as http]
    [encogio.html :as html]
    [encogio.config :as config]
-   [encogio.redis :as redis]
    [encogio.admin :as admin]
    [encogio.i18n :as i18n]
    [reitit.ring :as ring]))
