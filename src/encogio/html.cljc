@@ -14,7 +14,8 @@
          lang "es"
          stylesheets ["/css/font-awesome.css"
                       "/css/main.css"]
-         scripts []}}
+         scripts ["/js/analytics.js"
+                  "/js/main.js"]}}
    body]
   [:html
    {:lang lang}
